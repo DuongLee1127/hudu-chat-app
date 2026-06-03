@@ -1,0 +1,22 @@
+node_modules
+package-lock.json
+
+# env files (mẫu: .env.example từng app)
+apps/api/.env
+apps/api/.env.local
+apps/web/.env
+apps/web/.env.local
+
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+apps/**/.next/
+apps/**/dist/
+
+apps/api/package-lock.json
+apps/web/package-lock.json

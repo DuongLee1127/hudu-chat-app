@@ -1,0 +1,19 @@
+{
+  "name": "hudu-chat",
+  "workspaces": [
+    "apps/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prettier": "^3.8.3"
+  },
+  "scripts": {
+    "dev:web": "npm run dev --workspace=web",
+    "dev:api": "npm run dev --workspace=api",
+    "dev": "concurrently -n web,api -c blue,green \"npm run dev:web\" \"npm run dev:api\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "install:all": "npm install && npm install --workspace=web && npm install --workspace=api",
+    "install:web": "npm install && npm install --workspace=web"
+  }
+}
