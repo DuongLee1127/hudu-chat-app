@@ -15,5 +15,8 @@
     "format:check": "prettier --check .",
     "install:all": "npm install && npm install --workspace=web && npm install --workspace=api",
     "install:web": "npm install && npm install --workspace=web"
+  },
+  "dependencies": {
+    "mongoose": "^9.6.3"
   }
 }
