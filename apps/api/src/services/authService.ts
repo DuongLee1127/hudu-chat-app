@@ -1,6 +1,8 @@
-import User from '@/models/user';
 import bcrypt from 'bcrypt';
-import { generateToken } from '@/providers/JwtProvider';
+
+import User from '@/models/user';
+import RefreshToken from '@/models/refresh_token';
+import { generateToken, verifyToken } from '@/providers/JwtProvider';
 
 const authService = {
   login: async (email: string, password: string) => {
@@ -28,6 +30,14 @@ const authService = {
 
       const accessToken = generateToken(payload, jwtAccessToken, '1h');
       const refreshToken = generateToken(payload, jwtRefreshToken, '7 days');
+
+      // Lưu refresh token vào database hỗ trợ đa thiết bị
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 ngày
+      await RefreshToken.create({
+        userId: user._id,
+        token: refreshToken,
+        expiresAt,
+      });
 
       return { accessToken, refreshToken, ...payload };
     } catch (error) {
@@ -60,6 +70,94 @@ const authService = {
         email: newUser.email,
         username: newUser.username,
       };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  refreshToken: async (token: string) => {
+    try {
+      if (!token) throw new Error('Refresh token is required!');
+
+      const jwtRefreshToken = process.env.JWT_REFRESH_TOKEN;
+      const jwtAccessToken = process.env.JWT_ACCESS_TOKEN;
+      if (!jwtAccessToken || !jwtRefreshToken) {
+        throw new Error('JWT environment variables are not defined!');
+      }
+
+      // Verify token
+      const decoded = (await verifyToken(token, jwtRefreshToken)) as any;
+      if (!decoded || !decoded.id) {
+        throw new Error('Invalid refresh token!');
+      }
+
+      // Check refresh token in database (must exist, not expired, not revoked)
+      const dbToken = await RefreshToken.findOne({
+        token,
+        userId: decoded.id,
+        expiresAt: { $gt: new Date() },
+        revokedAt: { $exists: false },
+      });
+      if (!dbToken) {
+        throw new Error('Refresh token is invalid, expired or revoked!');
+      }
+
+      // Find user
+      const user = await User.findById(decoded.id);
+      if (!user) {
+        throw new Error('User not found!');
+      }
+
+      const payload = {
+        id: user._id,
+        email: user.email,
+        username: user.username,
+      };
+
+      const newAccessToken = generateToken(payload, jwtAccessToken, '1h');
+
+      return {
+        accessToken: newAccessToken,
+      };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  logout: async (token: string) => {
+    try {
+      if (!token) throw new Error('Refresh token is required!');
+      await RefreshToken.deleteOne({ token });
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  logoutAll: async (token: string) => {
+    try {
+      if (!token) throw new Error('Refresh token is required!');
+
+      const jwtRefreshToken = process.env.JWT_REFRESH_TOKEN;
+      if (!jwtRefreshToken) {
+        throw new Error('JWT environment variables are not defined!');
+      }
+
+      const decoded = (await verifyToken(token, jwtRefreshToken)) as any;
+      if (!decoded || !decoded.id) {
+        throw new Error('Invalid refresh token!');
+      }
+
+      await RefreshToken.deleteMany({ userId: decoded.id });
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getMe: async (userId: string) => {
+    try {
+      const user = await User.findById(userId);
+      if (!user) throw new Error('Không tìm thấy người dùng!');
+      return user;
     } catch (error) {
       throw error;
     }
