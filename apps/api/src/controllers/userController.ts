@@ -18,16 +18,88 @@ const userController = {
     }
   },
 
-  changePassword: async (req: Request, res: Response) => {
+  searchUsers: async (req: Request, res: Response) => {
     try {
-      const userId = req.user?.id;
-      if (!userId) {
+      const currentUserId = req.user?.id;
+      if (!currentUserId) {
         return sendError(res, 'Unauthorized', 401);
       }
 
-      const { oldPassword, newPassword } = req.body;
-      const result = await userService.changePassword(String(userId), oldPassword, newPassword);
-      return sendSuccess(res, result, 'Change password success', 200);
+      const q = String(req.query.q || '');
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const pageSize = Math.max(1, Number(req.query.pageSize) || 10);
+
+      const result = await userService.searchUsers(String(currentUserId), q, page, pageSize);
+      return sendSuccess(res, result, 'Search users success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
+    }
+  },
+
+  getUserProfile: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'User ID is required', 400);
+      }
+
+      const user = await userService.getUserProfile(String(id));
+      return sendSuccess(res, { publicUser: user }, 'Get user profile success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
+    }
+  },
+
+  blockUser: async (req: Request, res: Response) => {
+    try {
+      const currentUserId = req.user?.id;
+      if (!currentUserId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'User ID is required', 400);
+      }
+
+      const result = await userService.blockUser(String(currentUserId), String(id));
+      return sendSuccess(res, result, 'Block user success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
+    }
+  },
+
+  unblockUser: async (req: Request, res: Response) => {
+    try {
+      const currentUserId = req.user?.id;
+      if (!currentUserId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'User ID is required', 400);
+      }
+
+      const result = await userService.unblockUser(String(currentUserId), String(id));
+      return sendSuccess(res, result, 'Unblock user success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
+    }
+  },
+
+  getBlockedUsers: async (req: Request, res: Response) => {
+    try {
+      const currentUserId = req.user?.id;
+      if (!currentUserId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const pageSize = Math.max(1, Number(req.query.pageSize) || 10);
+
+      const result = await userService.getBlockedUsers(String(currentUserId), page, pageSize);
+      return sendSuccess(res, result, 'Get blocked users success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
     }

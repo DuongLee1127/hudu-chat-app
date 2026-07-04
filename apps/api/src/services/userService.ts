@@ -1,5 +1,5 @@
-import bcrypt from 'bcrypt';
 import User from '@/models/user';
+import Block from '@/models/block';
 
 const userService = {
   updateProfile: async (
@@ -23,26 +23,118 @@ const userService = {
     }
   },
 
-  changePassword: async (userId: string, oldPass: string, newPass: string) => {
+  searchUsers: async (
+    currentUserId: string,
+    q: string,
+    page: number = 1,
+    pageSize: number = 10,
+  ) => {
     try {
-      if (!oldPass || !newPass) {
-        throw new Error('Vui lòng cung cấp mật khẩu cũ và mật khẩu mới!');
-      }
-      if (newPass.length < 8) {
-        throw new Error('Mật khẩu mới phải có ít nhất 8 ký tự!');
+      const skip = (page - 1) * pageSize;
+
+      const filter: any = {
+        _id: { $ne: currentUserId },
+      };
+
+      if (q) {
+        filter.$or = [
+          { username: { $regex: q, $options: 'i' } },
+          { email: { $regex: q, $options: 'i' } },
+        ];
       }
 
-      const user = await User.findById(userId).select('+password');
+      const [items, total] = await Promise.all([
+        User.find(filter).skip(skip).limit(pageSize).exec(),
+        User.countDocuments(filter),
+      ]);
+
+      const totalPages = Math.ceil(total / pageSize);
+
+      return {
+        items,
+        meta: {
+          total,
+          page,
+          pageSize,
+          totalPages,
+        },
+      };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getUserProfile: async (userId: string) => {
+    try {
+      const user = await User.findById(userId).select('-password');
       if (!user) throw new Error('Không tìm thấy người dùng!');
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  },
 
-      const isMatch = await bcrypt.compare(oldPass, user.password);
-      if (!isMatch) throw new Error('Mật khẩu cũ không chính xác!');
+  blockUser: async (userId: string, blockedUserId: string) => {
+    try {
+      if (userId === blockedUserId) {
+        throw new Error('Bạn không thể chặn chính mình!');
+      }
 
-      const hashedNewPassword = await bcrypt.hash(newPass, 12);
-      user.password = hashedNewPassword;
-      await user.save();
+      const targetUser = await User.findById(blockedUserId);
+      if (!targetUser) {
+        throw new Error('Không tìm thấy người dùng định chặn!');
+      }
+
+      const existingBlock = await Block.findOne({ userId, blockedUserId });
+      if (!existingBlock) {
+        await Block.create({ userId, blockedUserId });
+      }
 
       return { success: true };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  unblockUser: async (userId: string, blockedUserId: string) => {
+    try {
+      await Block.deleteOne({ userId, blockedUserId });
+      return { success: true };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getBlockedUsers: async (userId: string, page: number = 1, pageSize: number = 10) => {
+    try {
+      const skip = (page - 1) * pageSize;
+      const filter = { userId };
+
+      const [items, total] = await Promise.all([
+        Block.find(filter)
+          .populate({
+            path: 'blockedUserId',
+            select: '_id username email avatar status bio',
+          })
+          .skip(skip)
+          .limit(pageSize)
+          .exec(),
+        Block.countDocuments(filter),
+      ]);
+
+      const userItems = items.map((block) => block.blockedUserId as any).filter(Boolean);
+
+      const totalPages = Math.ceil(total / pageSize);
+
+      return {
+        items: userItems,
+        meta: {
+          total,
+          page,
+          pageSize,
+          totalPages,
+        },
+      };
     } catch (error) {
       throw error;
     }

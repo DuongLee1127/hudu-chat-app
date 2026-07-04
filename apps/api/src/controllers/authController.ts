@@ -128,6 +128,21 @@ const authController = {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
     }
   },
+
+  changePassword: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { oldPassword, newPassword } = req.body;
+      const result = await authService.changePassword(String(userId), oldPassword, newPassword);
+      return sendSuccess(res, result, 'Change password success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
+    }
+  },
 };
 
 export default authController;

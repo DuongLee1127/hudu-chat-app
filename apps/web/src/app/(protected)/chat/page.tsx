@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Layout, Avatar, Input, List, Typography, Button, Badge, theme, Flex } from 'antd';
+import { Layout, Avatar, Input, Typography, Button, Badge, theme, Flex } from 'antd';
 import {
   SendOutlined,
   SearchOutlined,
@@ -104,11 +104,10 @@ const ChatPage = () => {
           <Input prefix={<SearchOutlined />} placeholder="Tìm kiếm hội thoại..." variant="filled" />
         </div>
 
-        <List
-          itemLayout="horizontal"
-          dataSource={contacts}
-          renderItem={(item) => (
-            <List.Item
+        <Flex vertical>
+          {contacts.map((item) => (
+            <div
+              key={item.id}
               style={{
                 padding: '12px 16px',
                 cursor: 'pointer',
@@ -117,32 +116,32 @@ const ChatPage = () => {
               }}
               className="chat-list-item"
             >
-              <List.Item.Meta
-                avatar={
-                  <Badge dot={item.online} color="green" offset={[-2, 32]}>
-                    <Avatar size={48}>{item.name[0]}</Avatar>
-                  </Badge>
-                }
-                title={
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Flex gap={12} align="flex-start">
+                <Badge dot={item.online} color="green" offset={[-2, 32]}>
+                  <Avatar size={48}>{item.name[0]}</Avatar>
+                </Badge>
+
+                <Flex vertical flex={1}>
+                  <Flex justify="space-between">
                     <Text strong>{item.name}</Text>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
+
+                    <Text type="secondary" style={{ fontSize: 12 }}>
                       {item.time}
                     </Text>
-                  </div>
-                }
-                description={
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text ellipsis type="secondary" style={{ maxWidth: '160px' }}>
+                  </Flex>
+
+                  <Flex justify="space-between">
+                    <Text ellipsis type="secondary" style={{ maxWidth: 160 }}>
                       {item.lastMsg}
                     </Text>
+
                     {item.unread > 0 && <Badge count={item.unread} size="small" />}
-                  </div>
-                }
-              />
-            </List.Item>
-          )}
-        />
+                  </Flex>
+                </Flex>
+              </Flex>
+            </div>
+          ))}
+        </Flex>
       </Sider>
 
       {/* Main Content - Cửa sổ chat */}

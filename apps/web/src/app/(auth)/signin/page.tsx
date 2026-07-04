@@ -1,15 +1,39 @@
 'use client';
 
-import React from 'react';
-import { Form, Input, Button, Checkbox, Card, Typography, Divider } from 'antd';
+import React, { useState } from 'react';
+import { Form, Input, Button, Checkbox, Card, Typography, Divider, message } from 'antd';
 import { UserOutlined, LockOutlined, GoogleOutlined, GithubOutlined } from '@ant-design/icons';
 import Link from 'next/link';
+import axiosClient from '@/api/axiosClient';
 
 const { Title, Text } = Typography;
 
 const LoginPage = () => {
-  const onFinish = (values: any) => {
-    console.log('Login values:', values);
+  const [loading, setLoading] = useState(false);
+
+  const onFinish = async (values: Record<string, string>) => {
+    try {
+      setLoading(true);
+      const res = await axiosClient.post('/api/auth/login', {
+        email: values.email,
+        password: values.password,
+      });
+
+      if (res.data?.status === 'success') {
+        message.success('Đăng nhập thành công!');
+        window.location.href = '/chat';
+      } else {
+        message.error(res.data?.message || 'Đăng nhập thất bại!');
+      }
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      message.error(
+        axiosError.response?.data?.message ||
+          'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin!',
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,7 +96,12 @@ const LoginPage = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" style={{ width: '100%', borderRadius: '6px' }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              style={{ width: '100%', borderRadius: '6px' }}
+            >
               Đăng nhập
             </Button>
             <div style={{ marginTop: 16, textAlign: 'center' }}>

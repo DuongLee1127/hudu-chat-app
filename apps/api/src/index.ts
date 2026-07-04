@@ -15,7 +15,12 @@ dotenv.config();
 const app = express();
 connect();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    credentials: true,
+  }),
+);
 app.use(cookieParser());
 app.use(express.json());
 

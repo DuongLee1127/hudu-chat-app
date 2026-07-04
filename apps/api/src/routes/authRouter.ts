@@ -240,5 +240,6 @@ router.post('/logout', authController.logout);
 router.post('/logout-all', authController.logoutAll);
 router.post('/refresh', authController.refresh);
 router.get('/me', authMiddleware, authController.me);
+router.put('/me/change-password', authMiddleware, authController.changePassword);
 
 export default router;

@@ -162,6 +162,31 @@ const authService = {
       throw error;
     }
   },
+
+  changePassword: async (userId: string, oldPass: string, newPass: string) => {
+    try {
+      if (!oldPass || !newPass) {
+        throw new Error('Vui lòng cung cấp mật khẩu cũ và mật khẩu mới!');
+      }
+      if (newPass.length < 8) {
+        throw new Error('Mật khẩu mới phải có ít nhất 8 ký tự!');
+      }
+
+      const user = await User.findById(userId).select('+password');
+      if (!user) throw new Error('Không tìm thấy người dùng!');
+
+      const isMatch = await bcrypt.compare(oldPass, user.password);
+      if (!isMatch) throw new Error('Mật khẩu cũ không chính xác!');
+
+      const hashedNewPassword = await bcrypt.hash(newPass, 12);
+      user.password = hashedNewPassword;
+      await user.save();
+
+      return { success: true };
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 export default authService;

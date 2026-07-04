@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { Form, Input, Button, Card, Typography, Divider, Checkbox } from 'antd';
+import React, { useState } from 'react';
+import { Form, Input, Button, Card, Typography, Divider, Checkbox, message } from 'antd';
 import {
   UserOutlined,
   LockOutlined,
@@ -10,12 +10,36 @@ import {
   GithubOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
+import axiosClient from '@/api/axiosClient';
 
 const { Title, Text } = Typography;
 
 const RegisterPage = () => {
-  const onFinish = (values: any) => {
-    console.log('Register values:', values);
+  const [loading, setLoading] = useState(false);
+
+  const onFinish = async (values: Record<string, string>) => {
+    try {
+      setLoading(true);
+      const res = await axiosClient.post('/api/auth/register', {
+        username: values.username,
+        email: values.email,
+        password: values.password,
+      });
+
+      if (res.data?.status === 'success') {
+        message.success('Đăng ký tài khoản thành công!');
+        window.location.href = '/login';
+      } else {
+        message.error(res.data?.message || 'Đăng ký tài khoản thất bại!');
+      }
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      message.error(
+        axiosError.response?.data?.message || 'Đăng ký tài khoản thất bại. Vui lòng kiểm tra lại!',
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -102,7 +126,12 @@ const RegisterPage = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" style={{ width: '100%', borderRadius: '6px' }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              style={{ width: '100%', borderRadius: '6px' }}
+            >
               Đăng ký
             </Button>
             <div style={{ marginTop: 16, textAlign: 'center' }}>
