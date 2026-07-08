@@ -5,7 +5,7 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 }
 
 const axiosClient = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: '/api',
   timeout: 30000,
   withCredentials: true,
   headers: {
@@ -32,7 +32,7 @@ axiosClient.interceptors.response.use(
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        await axiosClient.post('/api/auth/refresh');
+        await axiosClient.post('/auth/refresh');
         return axiosClient(originalRequest);
       } catch (refreshError) {
         if (typeof window !== 'undefined') {

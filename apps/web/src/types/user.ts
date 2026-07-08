@@ -1,7 +1,18 @@
-export interface UpdateProfilePayload {
+export interface User {
+  _id: string;
   username: string;
-  avatar: string;
-  bio: string;
+  email: string;
+  avatar?: string | null;
+  status: 'online' | 'offline' | 'away';
+  bio?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UpdateProfilePayload {
+  username?: string;
+  avatar?: string;
+  bio?: string;
 }
 
 export interface ChangePasswordPayload {

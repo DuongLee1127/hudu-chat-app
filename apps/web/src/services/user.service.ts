@@ -4,28 +4,33 @@ import type {
   ChangePasswordPayload,
   SearchUsersParams,
   ListBlockUserParams,
+  User,
 } from '@/types/user';
+import type { ApiResponse, PagedResult } from '@/types/api';
 
 export const userService = {
   updateProfile: async (payload: UpdateProfilePayload) => {
-    return axiosClient.put('/users/me', payload);
+    return axiosClient.put<never, ApiResponse<User>>('/users/me', payload);
   },
   changePassword: async (payload: ChangePasswordPayload) => {
-    return axiosClient.put('/users/me/password', payload);
+    return axiosClient.put<never, ApiResponse<{ success: boolean }>>(
+      '/auth/me/change-password',
+      payload,
+    );
   },
   viewProfilePublic: async (idUser: string) => {
-    return axiosClient.get(`/users/${idUser}`);
+    return axiosClient.get<never, ApiResponse<{ publicUser: User }>>(`/users/${idUser}`);
   },
   searchUsers: async (params: SearchUsersParams) => {
-    return axiosClient.get('/users/search', { params });
+    return axiosClient.get<never, ApiResponse<PagedResult<User>>>('/users/search', { params });
   },
   getListBlockUser: async (params: ListBlockUserParams) => {
-    return axiosClient.get('/users/me/blocks', { params });
+    return axiosClient.get<never, ApiResponse<PagedResult<User>>>('/users/me/blocks', { params });
   },
   blockUser: async (idUser: string) => {
-    return axiosClient.post(`/users/${idUser}/block`);
+    return axiosClient.post<never, ApiResponse<{ success: boolean }>>(`/users/${idUser}/block`);
   },
   unblockUser: async (idUser: string) => {
-    return axiosClient.delete(`/users/${idUser}/block`);
+    return axiosClient.delete<never, ApiResponse<{ success: boolean }>>(`/users/${idUser}/block`);
   },
 };

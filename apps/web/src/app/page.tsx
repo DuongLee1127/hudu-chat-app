@@ -1,3 +1,13 @@
-export default function Home() {
-  return <div>Hello</div>;
+import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+
+export default async function Home() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('accessToken');
+
+  if (token) {
+    redirect('/chat');
+  } else {
+    redirect('/signin');
+  }
 }
