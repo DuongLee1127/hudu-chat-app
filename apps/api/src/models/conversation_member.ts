@@ -6,6 +6,8 @@ export interface IConversationMember extends Document {
   role: 'admin' | 'member';
   joinedAt: Date;
   lastReadAt: Date;
+  mutedUntil?: Date | null;
+  isArchived: boolean;
 }
 
 const ConversationMemberSchema: Schema = new Schema(
@@ -28,6 +30,14 @@ const ConversationMemberSchema: Schema = new Schema(
     lastReadAt: {
       type: Date,
       default: Date.now,
+    },
+    mutedUntil: {
+      type: Date,
+      default: null,
+    },
+    isArchived: {
+      type: Boolean,
+      default: false,
     },
   },
   {

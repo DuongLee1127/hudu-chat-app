@@ -5,7 +5,7 @@ import { Avatar, Button, Drawer, Form, Input, Tabs, App } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
 
-import { useUpdateProfile, useChangePassword } from '@/hook/user';
+import { useUpdateProfile, useChangePassword } from '@/hook/useUser';
 import type { User, UpdateProfilePayload, ChangePasswordPayload } from '@/types/user';
 import type { ApiResponse } from '@/types/api';
 import { colorForId, initialOf } from '@/lib/avatar';

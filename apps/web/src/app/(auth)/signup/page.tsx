@@ -8,7 +8,7 @@ import Image from 'next/image';
 import type { AxiosError } from 'axios';
 
 import { notify } from '@/lib/notify';
-import { useRegister } from '@/hook/auth';
+import { useRegister } from '@/hook/useAuth';
 import type { RegisterPayload } from '@/types/auth';
 import type { ApiResponse } from '@/types/api';
 

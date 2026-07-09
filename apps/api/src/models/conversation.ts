@@ -6,6 +6,7 @@ export interface IConversation extends Document {
   avatar?: string;
   creatorId?: mongoose.Types.ObjectId;
   lastMessageId?: mongoose.Types.ObjectId;
+  lastMessageAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +33,10 @@ const ConversationSchema: Schema = new Schema(
     lastMessageId: {
       type: Schema.Types.ObjectId,
       ref: 'Message',
+    },
+    lastMessageAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {

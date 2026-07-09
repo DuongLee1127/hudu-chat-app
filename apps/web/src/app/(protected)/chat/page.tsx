@@ -6,14 +6,14 @@ import { ExclamationCircleFilled } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import type { AxiosError } from 'axios';
 
-import { useGetMe, useLogout } from '@/hook/auth';
+import { useGetMe, useLogout } from '@/hook/useAuth';
 import {
   useSearchUsers,
   useGetListBlockUser,
   useBlockUser,
   useUnBlockUser,
   useViewProfilePublic,
-} from '@/hook/user';
+} from '@/hook/useUser';
 import { notify } from '@/lib/notify';
 import { useChatStore } from '@/store/useChatStore';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';

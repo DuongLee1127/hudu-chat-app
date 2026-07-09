@@ -8,7 +8,7 @@ import Image from 'next/image';
 import type { AxiosError } from 'axios';
 
 import { notify } from '@/lib/notify';
-import { useLogin } from '@/hook/auth';
+import { useLogin } from '@/hook/useAuth';
 import type { LoginPayload } from '@/types/auth';
 import type { ApiResponse } from '@/types/api';
 

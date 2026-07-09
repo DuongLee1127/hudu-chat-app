@@ -1,6 +1,18 @@
 'use client';
 
-import { Avatar, Badge, Button, Dropdown, Empty, Flex, Input, Skeleton, Typography } from 'antd';
+import { useState } from 'react';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Dropdown,
+  Empty,
+  Flex,
+  Input,
+  Skeleton,
+  Tabs,
+  Typography,
+} from 'antd';
 import {
   SearchOutlined,
   UserOutlined,
@@ -8,9 +20,12 @@ import {
   StopOutlined,
   LogoutOutlined,
   MoreOutlined,
+  UsergroupAddOutlined,
 } from '@ant-design/icons';
 import type { User } from '@/types/user';
 import { colorForId, initialOf } from '@/lib/avatar';
+import ConversationsList from './ConversationsList';
+import CreateGroupModal from './CreateGroupModal';
 
 const { Text, Title } = Typography;
 
@@ -41,6 +56,9 @@ const Sidebar = ({
   onLogout,
   logoutLoading,
 }: SidebarProps) => {
+  const [activeTab, setActiveTab] = useState<'conversations' | 'contacts'>('conversations');
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+
   const menuItems = [
     { key: 'profile', icon: <SettingOutlined />, label: 'Hồ sơ cá nhân' },
     { key: 'blocked', icon: <StopOutlined />, label: 'Người dùng đã chặn' },
@@ -99,71 +117,104 @@ const Sidebar = ({
         </Dropdown>
       </div>
 
-      <div style={{ padding: '14px 16px' }}>
-        <Input
-          prefix={<SearchOutlined style={{ color: '#9a9ab0' }} />}
-          placeholder="Tìm kiếm người dùng..."
-          variant="filled"
-          allowClear
-          value={searchValue}
-          onChange={(e) => onSearchChange(e.target.value)}
-        />
-      </div>
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as 'conversations' | 'contacts')}
+        style={{ padding: '0 16px' }}
+        tabBarExtraContent={
+          activeTab === 'conversations' ? (
+            <Button
+              type="text"
+              size="small"
+              icon={<UsergroupAddOutlined />}
+              onClick={() => setCreateGroupOpen(true)}
+              title="Tạo nhóm chat"
+            />
+          ) : null
+        }
+        items={[
+          { key: 'conversations', label: 'Trò chuyện' },
+          { key: 'contacts', label: 'Danh bạ' },
+        ]}
+      />
+
+      {activeTab === 'contacts' && (
+        <div style={{ padding: '0 16px 14px' }}>
+          <Input
+            prefix={<SearchOutlined style={{ color: '#9a9ab0' }} />}
+            placeholder="Tìm kiếm người dùng..."
+            variant="filled"
+            allowClear
+            value={searchValue}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 12px' }}>
-        {loading && (
-          <div style={{ padding: '8px 12px' }}>
-            <Skeleton avatar paragraph={{ rows: 1 }} active />
-            <Skeleton avatar paragraph={{ rows: 1 }} active style={{ marginTop: 16 }} />
-            <Skeleton avatar paragraph={{ rows: 1 }} active style={{ marginTop: 16 }} />
-          </div>
+        {activeTab === 'conversations' && (
+          <ConversationsList selectedConversationId={null} onSelect={() => {}} />
         )}
 
-        {!loading && contacts.length === 0 && (
-          <Empty
-            description="Không tìm thấy người dùng nào"
-            style={{ marginTop: 60 }}
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
-        )}
+        {activeTab === 'contacts' && (
+          <>
+            {loading && (
+              <div style={{ padding: '8px 12px' }}>
+                <Skeleton avatar paragraph={{ rows: 1 }} active />
+                <Skeleton avatar paragraph={{ rows: 1 }} active style={{ marginTop: 16 }} />
+                <Skeleton avatar paragraph={{ rows: 1 }} active style={{ marginTop: 16 }} />
+              </div>
+            )}
 
-        {!loading &&
-          contacts.map((user) => (
-            <div
-              key={user._id}
-              onClick={() => onSelect(user)}
-              className="chat-list-item"
-              style={{
-                padding: '10px 12px',
-                borderRadius: 12,
-                cursor: 'pointer',
-                background: selectedUserId === user._id ? '#eef0ff' : 'transparent',
-                transition: 'background 0.2s',
-                marginBottom: 2,
-              }}
-            >
-              <Flex gap={12} align="center">
-                <Badge dot={user.status === 'online'} color="green" offset={[-4, 36]}>
-                  <Avatar
-                    size={44}
-                    src={user.avatar || undefined}
-                    style={{ backgroundColor: colorForId(user._id) }}
-                  >
-                    {initialOf(user.username)}
-                  </Avatar>
-                </Badge>
-                <Flex vertical flex={1} style={{ minWidth: 0 }}>
-                  <Text strong ellipsis>
-                    {user.username}
-                  </Text>
-                  <Text type="secondary" ellipsis style={{ fontSize: 12 }}>
-                    {user.bio || user.email}
-                  </Text>
-                </Flex>
-              </Flex>
-            </div>
-          ))}
+            {!loading && contacts.length === 0 && (
+              <Empty
+                description="Không tìm thấy người dùng nào"
+                style={{ marginTop: 60 }}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            )}
+
+            {!loading &&
+              contacts.map((user) => (
+                <div
+                  key={user._id}
+                  onClick={() => onSelect(user)}
+                  className="chat-list-item"
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    background: selectedUserId === user._id ? '#eef0ff' : 'transparent',
+                    transition: 'background 0.2s',
+                    marginBottom: 2,
+                  }}
+                >
+                  <Flex gap={12} align="center">
+                    <Badge dot={user.status === 'online'} color="green" offset={[-4, 36]}>
+                      <Avatar
+                        size={44}
+                        src={user.avatar || undefined}
+                        style={{ backgroundColor: colorForId(user._id) }}
+                      >
+                        {initialOf(user.username)}
+                      </Avatar>
+                    </Badge>
+                    <Flex vertical flex={1} style={{ minWidth: 0 }}>
+                      <Text strong ellipsis>
+                        {user.username}
+                      </Text>
+                      <Text type="secondary" ellipsis style={{ fontSize: 12 }}>
+                        {user.bio || user.email}
+                      </Text>
+                    </Flex>
+                  </Flex>
+                </div>
+              ))}
+          </>
+        )}
       </div>
+
+      <CreateGroupModal open={createGroupOpen} onClose={() => setCreateGroupOpen(false)} />
     </div>
   );
 };

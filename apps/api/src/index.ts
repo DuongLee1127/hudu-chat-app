@@ -9,6 +9,7 @@ import { connect } from '@/config/db';
 
 import authRouter from '@/routes/authRouter';
 import userRouter from '@/routes/userRouter';
+import conversationRouter from '@/routes/conversationRouter';
 
 const PORT = process.env.PORT || 5000;
 dotenv.config();
@@ -30,6 +31,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // routes`
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
+app.use('/api/conversations', conversationRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

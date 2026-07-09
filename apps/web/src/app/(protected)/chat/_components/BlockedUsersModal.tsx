@@ -3,7 +3,7 @@
 import { Avatar, Button, Empty, List, Modal, Skeleton, Typography, App } from 'antd';
 import type { AxiosError } from 'axios';
 
-import { useGetListBlockUser, useUnBlockUser } from '@/hook/user';
+import { useGetListBlockUser, useUnBlockUser } from '@/hook/useUser';
 import type { ApiResponse } from '@/types/api';
 import { colorForId, initialOf } from '@/lib/avatar';
 
@@ -57,7 +57,10 @@ const BlockedUsersModal = ({ open, onClose }: BlockedUsersModalProps) => {
             >
               <List.Item.Meta
                 avatar={
-                  <Avatar src={user.avatar || undefined} style={{ backgroundColor: colorForId(user._id) }}>
+                  <Avatar
+                    src={user.avatar || undefined}
+                    style={{ backgroundColor: colorForId(user._id) }}
+                  >
                     {initialOf(user.username)}
                   </Avatar>
                 }
