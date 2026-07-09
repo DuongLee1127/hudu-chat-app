@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import conversationController from '@/controllers/conversationController';
+import messageController from '@/controllers/messageController';
 import { authMiddleware } from '@/middlewares/authMiddleware';
 
 const router = Router();
@@ -313,5 +314,141 @@ router.delete('/:id/members/:userId', authMiddleware, conversationController.rem
 router.post('/:id/leave', authMiddleware, conversationController.leaveConversation);
 router.patch('/:id/mute', authMiddleware, conversationController.muteConversation);
 router.patch('/:id/archive', authMiddleware, conversationController.archiveConversation);
+
+/**
+ * @swagger
+ * /api/conversations/{id}/messages:
+ *   get:
+ *     summary: Get message history of a conversation (cursor pagination)
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: before
+ *         schema:
+ *           type: string
+ *         description: Return messages older than this message id
+ *       - in: query
+ *         name: after
+ *         schema:
+ *           type: string
+ *         description: Return messages newer than this message id
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: List of messages with nextCursor
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Not a member of this conversation
+ *   post:
+ *     summary: Send a message to a conversation
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [text, image, file, video, audio]
+ *               content:
+ *                 type: string
+ *               attachmentIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               replyToMessageId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Message sent
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ */
+
+/**
+ * @swagger
+ * /api/conversations/{id}/read:
+ *   post:
+ *     summary: Mark a conversation as read up to a given message
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - lastReadMessageId
+ *             properties:
+ *               lastReadMessageId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Member read state updated
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ */
+
+/**
+ * @swagger
+ * /api/conversations/{id}/unread-count:
+ *   get:
+ *     summary: Get number of unread messages in a conversation
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Unread count returned
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Not a member of this conversation
+ */
+
+router.get('/:id/messages', authMiddleware, messageController.listMessages);
+router.post('/:id/messages', authMiddleware, messageController.sendMessage);
+router.post('/:id/read', authMiddleware, messageController.markAsRead);
+router.get('/:id/unread-count', authMiddleware, messageController.getUnreadCount);
 
 export default router;

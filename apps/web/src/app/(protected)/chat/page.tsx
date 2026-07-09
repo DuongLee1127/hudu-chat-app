@@ -9,6 +9,7 @@ import type { AxiosError } from 'axios';
 import { useGetMe, useLogout } from '@/hook/useAuth';
 import { useSearchUsers, useGetListBlockUser, useBlockUser, useUnBlockUser } from '@/hook/useUser';
 import { useConversationDetail, useCreateDirectConversation } from '@/hook/useConversations';
+import { useListMessages, useSendMessage } from '@/hook/useMessages';
 import { notify } from '@/lib/notify';
 import { useChatStore } from '@/store/useChatStore';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
@@ -34,8 +35,6 @@ const ChatPage = () => {
   const setSelectedConversationId = useChatStore((s) => s.setSelectedConversationId);
   const searchQuery = useChatStore((s) => s.searchQuery);
   const setSearchQuery = useChatStore((s) => s.setSearchQuery);
-  const messagesByConversation = useChatStore((s) => s.messagesByConversation);
-  const sendMessage = useChatStore((s) => s.sendMessage);
 
   const debouncedQuery = useDebouncedValue(searchQuery, 350);
 
@@ -65,6 +64,13 @@ const ChatPage = () => {
     [blockedData],
   );
   const isSelectedBlocked = otherUserId ? blockedIds.has(otherUserId) : false;
+
+  const { data: messagesData, isLoading: messagesLoading } = useListMessages(
+    selectedConversationId ?? '',
+    { limit: 30 },
+  );
+  const messages = messagesData?.data.items ?? [];
+  const sendMessageMutation = useSendMessage(selectedConversationId ?? '');
 
   const logoutMutation = useLogout();
   const blockMutation = useBlockUser();
@@ -114,6 +120,19 @@ const ChatPage = () => {
     }
   };
 
+  const handleSendMessage = (text: string) => {
+    if (!selectedConversationId) return;
+    sendMessageMutation.mutate(
+      { content: text },
+      {
+        onError: (err) => {
+          const axiosErr = err as AxiosError<ApiResponse<null>>;
+          notify.error(axiosErr.response?.data?.message || 'Gửi tin nhắn thất bại!');
+        },
+      },
+    );
+  };
+
   const handleSelectContact = (user: User) => {
     setPendingContactId(user._id);
     createDirectMutation.mutate(user._id, {
@@ -149,8 +168,10 @@ const ChatPage = () => {
       <ChatWindow
         conversationId={selectedConversationId}
         currentUserId={currentUser?._id}
-        messages={selectedConversationId ? (messagesByConversation[selectedConversationId] ?? []) : []}
-        onSend={(text) => selectedConversationId && sendMessage(selectedConversationId, text)}
+        messages={selectedConversationId ? messages : []}
+        messagesLoading={!!selectedConversationId && messagesLoading}
+        onSend={handleSendMessage}
+        sendLoading={sendMessageMutation.isPending}
         isBlocked={isSelectedBlocked}
         onToggleBlock={handleToggleBlock}
         blockActionLoading={blockMutation.isPending || unblockMutation.isPending}

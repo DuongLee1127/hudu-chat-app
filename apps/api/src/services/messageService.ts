@@ -1,0 +1,219 @@
+import mongoose from 'mongoose';
+import Message from '@/models/message';
+import Attachment from '@/models/attachment';
+import Conversation from '@/models/conversation';
+import ConversationMember from '@/models/conversation_member';
+
+const EDIT_WINDOW_MS = 15 * 60 * 1000; // 15 phút
+
+const assertMember = async (conversationId: string, userId: string) => {
+  const membership = await ConversationMember.findOne({ conversationId, userId });
+  if (!membership) {
+    throw new Error('Bạn không phải thành viên của hội thoại này!');
+  }
+  return membership;
+};
+
+const assertAdmin = async (conversationId: string, userId: string) => {
+  const membership = await assertMember(conversationId, userId);
+  if (membership.role !== 'admin') {
+    throw new Error('Chỉ quản trị viên mới có quyền thực hiện hành động này!');
+  }
+  return membership;
+};
+
+const populateMessage = (query: any) =>
+  query
+    .populate({ path: 'senderId', select: '_id username avatar' })
+    .populate({ path: 'attachmentIds' })
+    .populate({ path: 'replyToMessageId', select: '_id content senderId type isDeleted' });
+
+const messageService = {
+  listMessages: async (
+    userId: string,
+    conversationId: string,
+    options: { before?: string; after?: string; limit?: number },
+  ) => {
+    try {
+      await assertMember(conversationId, userId);
+
+      const limit = Math.min(Math.max(Number(options.limit) || 20, 1), 100);
+      const filter: any = { conversationId, isDeleted: false };
+
+      if (options.after) {
+        filter._id = { $gt: new mongoose.Types.ObjectId(options.after) };
+      } else if (options.before) {
+        filter._id = { $lt: new mongoose.Types.ObjectId(options.before) };
+      }
+
+      const sortDirection = options.after ? 1 : -1;
+
+      const docs = await populateMessage(
+        Message.find(filter).sort({ _id: sortDirection }).limit(limit),
+      ).exec();
+
+      const hasMore = docs.length === limit;
+      const nextCursor = hasMore ? String(docs[docs.length - 1]._id) : null;
+      const items = sortDirection === 1 ? docs : docs.slice().reverse();
+
+      return { items, nextCursor };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  sendMessage: async (
+    userId: string,
+    conversationId: string,
+    data: {
+      type?: 'text' | 'image' | 'file' | 'video' | 'audio';
+      content?: string;
+      attachmentIds?: string[];
+      replyToMessageId?: string;
+    },
+  ) => {
+    try {
+      await assertMember(conversationId, userId);
+
+      const attachmentIds = Array.from(new Set(data.attachmentIds || []));
+      if (!data.content?.trim() && attachmentIds.length === 0) {
+        throw new Error('Nội dung tin nhắn không được để trống!');
+      }
+
+      if (attachmentIds.length > 0) {
+        const count = await Attachment.countDocuments({ _id: { $in: attachmentIds } });
+        if (count !== attachmentIds.length) {
+          throw new Error('Một số tệp đính kèm không tồn tại!');
+        }
+      }
+
+      if (data.replyToMessageId) {
+        const replyMessage = await Message.findOne({
+          _id: data.replyToMessageId,
+          conversationId,
+          isDeleted: false,
+        });
+        if (!replyMessage) {
+          throw new Error('Tin nhắn được trả lời không tồn tại!');
+        }
+      }
+
+      const message = await Message.create({
+        conversationId,
+        senderId: userId,
+        content: data.content?.trim() || '',
+        type: data.type || 'text',
+        attachmentIds,
+        replyToMessageId: data.replyToMessageId || undefined,
+      });
+
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessageId: message._id,
+        lastMessageAt: message.createdAt,
+      });
+
+      await ConversationMember.updateOne(
+        { conversationId, userId },
+        { lastReadMessageId: message._id, lastReadAt: message.createdAt },
+      );
+
+      const populated = await populateMessage(Message.findById(message._id)).exec();
+      return populated;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  editMessage: async (userId: string, messageId: string, content: string) => {
+    try {
+      const message = await Message.findById(messageId);
+      if (!message || message.isDeleted) {
+        throw new Error('Không tìm thấy tin nhắn!');
+      }
+      if (String(message.senderId) !== userId) {
+        throw new Error('Bạn không có quyền sửa tin nhắn này!');
+      }
+      if (message.type === 'system') {
+        throw new Error('Không thể sửa tin nhắn hệ thống!');
+      }
+      if (Date.now() - message.createdAt.getTime() > EDIT_WINDOW_MS) {
+        throw new Error('Đã hết thời gian cho phép sửa tin nhắn!');
+      }
+      if (!content?.trim()) {
+        throw new Error('Nội dung tin nhắn không được để trống!');
+      }
+
+      message.content = content.trim();
+      message.isEdited = true;
+      await message.save();
+
+      return populateMessage(Message.findById(message._id)).exec();
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  deleteMessage: async (userId: string, messageId: string) => {
+    try {
+      const message = await Message.findById(messageId);
+      if (!message || message.isDeleted) {
+        throw new Error('Không tìm thấy tin nhắn!');
+      }
+
+      if (String(message.senderId) !== userId) {
+        await assertAdmin(String(message.conversationId), userId);
+      }
+
+      message.isDeleted = true;
+      message.content = '';
+      message.attachmentIds = [];
+      await message.save();
+
+      return { success: true };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  markAsRead: async (userId: string, conversationId: string, lastReadMessageId: string) => {
+    try {
+      const membership = await assertMember(conversationId, userId);
+
+      const message = await Message.findOne({ _id: lastReadMessageId, conversationId });
+      if (!message) {
+        throw new Error('Tin nhắn không tồn tại trong hội thoại này!');
+      }
+
+      membership.lastReadMessageId = message._id as mongoose.Types.ObjectId;
+      membership.lastReadAt = message.createdAt;
+      await membership.save();
+
+      return membership;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getUnreadCount: async (userId: string, conversationId: string) => {
+    try {
+      const membership = await assertMember(conversationId, userId);
+
+      const filter: any = {
+        conversationId,
+        isDeleted: false,
+        senderId: { $ne: userId },
+      };
+
+      if (membership.lastReadMessageId) {
+        filter._id = { $gt: membership.lastReadMessageId };
+      }
+
+      const unreadCount = await Message.countDocuments(filter);
+      return { unreadCount };
+    } catch (error) {
+      throw error;
+    }
+  },
+};
+
+export default messageService;

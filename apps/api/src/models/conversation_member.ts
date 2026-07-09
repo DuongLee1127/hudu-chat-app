@@ -6,6 +6,7 @@ export interface IConversationMember extends Document {
   role: 'admin' | 'member';
   joinedAt: Date;
   lastReadAt: Date;
+  lastReadMessageId?: mongoose.Types.ObjectId;
   mutedUntil?: Date | null;
   isArchived: boolean;
 }
@@ -30,6 +31,11 @@ const ConversationMemberSchema: Schema = new Schema(
     lastReadAt: {
       type: Date,
       default: Date.now,
+    },
+    lastReadMessageId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null,
     },
     mutedUntil: {
       type: Date,

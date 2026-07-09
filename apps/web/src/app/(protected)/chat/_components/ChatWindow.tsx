@@ -12,17 +12,22 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 import { useConversationDetail } from '@/hook/useConversations';
-import type { ChatMessage } from '@/store/useChatStore';
+import type { Message } from '@/types/message';
 import { colorForId, initialOf } from '@/lib/avatar';
 import GroupSettingsModal from './GroupSettingsModal';
 
 const { Text, Title } = Typography;
 
+const formatMessageTime = (isoDate: string) =>
+  new Date(isoDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
 interface ChatWindowProps {
   conversationId: string | null;
   currentUserId?: string;
-  messages: ChatMessage[];
+  messages: Message[];
+  messagesLoading: boolean;
   onSend: (text: string) => void;
+  sendLoading: boolean;
   isBlocked: boolean;
   onToggleBlock: () => void;
   blockActionLoading: boolean;
@@ -32,7 +37,9 @@ const ChatWindow = ({
   conversationId,
   currentUserId,
   messages,
+  messagesLoading,
   onSend,
+  sendLoading,
   isBlocked,
   onToggleBlock,
   blockActionLoading,
@@ -183,41 +190,48 @@ const ChatWindow = ({
       )}
 
       <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
-        {messages.length === 0 && (
+        {messagesLoading && <Skeleton paragraph={{ rows: 4 }} active />}
+        {!messagesLoading && messages.length === 0 && (
           <Empty
             description="Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên!"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             style={{ marginTop: 40 }}
           />
         )}
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: msg.mine ? 'flex-end' : 'flex-start',
-              marginBottom: 16,
-            }}
-          >
-            <div
-              style={{
-                maxWidth: '70%',
-                padding: '10px 16px',
-                borderRadius: msg.mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                background: msg.mine ? '#5b5bf6' : '#fff',
-                color: msg.mine ? '#fff' : 'rgba(0,0,0,0.88)',
-                boxShadow: '0 2px 6px rgba(20,20,60,0.06)',
-                wordBreak: 'break-word',
-              }}
-            >
-              {msg.text}
-            </div>
-            <Text type="secondary" style={{ fontSize: 11, marginTop: 4 }}>
-              {msg.time}
-            </Text>
-          </div>
-        ))}
+        {!messagesLoading &&
+          messages.map((msg) => {
+            const mine = msg.senderId._id === currentUserId;
+            return (
+              <div
+                key={msg._id}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: mine ? 'flex-end' : 'flex-start',
+                  marginBottom: 16,
+                }}
+              >
+                <div
+                  style={{
+                    maxWidth: '70%',
+                    padding: '10px 16px',
+                    borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                    background: mine ? '#5b5bf6' : '#fff',
+                    color: mine ? '#fff' : 'rgba(0,0,0,0.88)',
+                    boxShadow: '0 2px 6px rgba(20,20,60,0.06)',
+                    wordBreak: 'break-word',
+                    fontStyle: msg.isDeleted ? 'italic' : 'normal',
+                  }}
+                >
+                  {msg.isDeleted ? 'Tin nhắn đã được thu hồi' : msg.content}
+                </div>
+                <Text type="secondary" style={{ fontSize: 11, marginTop: 4 }}>
+                  {formatMessageTime(msg.createdAt)}
+                  {msg.isEdited && !msg.isDeleted ? ' · Đã chỉnh sửa' : ''}
+                </Text>
+              </div>
+            );
+          })}
         <div ref={bottomRef} />
       </div>
 
@@ -228,7 +242,7 @@ const ChatWindow = ({
             size="large"
             variant="filled"
             value={draft}
-            disabled={isBlocked}
+            disabled={isBlocked || sendLoading}
             onChange={(e) => setDraft(e.target.value)}
             onPressEnter={handleSend}
             style={{ borderRadius: 20 }}
@@ -239,6 +253,7 @@ const ChatWindow = ({
             icon={<SendOutlined />}
             size="large"
             shape="circle"
+            loading={sendLoading}
             disabled={!draft.trim() || isBlocked}
             onClick={handleSend}
           />

@@ -5,6 +5,9 @@ export interface IMessage extends Document {
   senderId: mongoose.Types.ObjectId;
   content: string;
   type: 'text' | 'image' | 'file' | 'video' | 'audio' | 'system';
+  attachmentIds: mongoose.Types.ObjectId[];
+  replyToMessageId?: mongoose.Types.ObjectId;
+  isEdited: boolean;
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -25,12 +28,26 @@ const MessageSchema: Schema = new Schema(
     },
     content: {
       type: String,
-      required: true,
+      default: '',
     },
     type: {
       type: String,
       enum: ['text', 'image', 'file', 'video', 'audio', 'system'],
       default: 'text',
+    },
+    attachmentIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Attachment',
+      },
+    ],
+    replyToMessageId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Message',
+    },
+    isEdited: {
+      type: Boolean,
+      default: false,
     },
     isDeleted: {
       type: Boolean,

@@ -1,0 +1,142 @@
+import { Request, Response } from 'express';
+import messageService from '@/services/messageService';
+import { sendSuccess, sendError } from '@/helpers';
+
+const messageController = {
+  listMessages: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Conversation ID is required', 400);
+      }
+
+      const { before, after, limit } = req.query;
+      const result = await messageService.listMessages(String(userId), String(id), {
+        before: before ? String(before) : undefined,
+        after: after ? String(after) : undefined,
+        limit: limit ? Number(limit) : undefined,
+      });
+      return sendSuccess(res, result, 'Get messages success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 403);
+    }
+  },
+
+  sendMessage: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Conversation ID is required', 400);
+      }
+
+      const { type, content, attachmentIds, replyToMessageId } = req.body;
+      const message = await messageService.sendMessage(String(userId), String(id), {
+        type,
+        content,
+        attachmentIds: Array.isArray(attachmentIds) ? attachmentIds.map(String) : [],
+        replyToMessageId,
+      });
+      return sendSuccess(res, { message }, 'Send message success', 201);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  editMessage: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Message ID is required', 400);
+      }
+
+      const { content } = req.body;
+      const message = await messageService.editMessage(String(userId), String(id), content);
+      return sendSuccess(res, { message }, 'Edit message success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  deleteMessage: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Message ID is required', 400);
+      }
+
+      const result = await messageService.deleteMessage(String(userId), String(id));
+      return sendSuccess(res, result, 'Delete message success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  markAsRead: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Conversation ID is required', 400);
+      }
+
+      const { lastReadMessageId } = req.body;
+      if (!lastReadMessageId) {
+        return sendError(res, 'lastReadMessageId is required', 400);
+      }
+
+      const memberSetting = await messageService.markAsRead(
+        String(userId),
+        String(id),
+        String(lastReadMessageId),
+      );
+      return sendSuccess(res, { memberSetting }, 'Mark as read success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  getUnreadCount: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Conversation ID is required', 400);
+      }
+
+      const result = await messageService.getUnreadCount(String(userId), String(id));
+      return sendSuccess(res, result, 'Get unread count success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 403);
+    }
+  },
+};
+
+export default messageController;
