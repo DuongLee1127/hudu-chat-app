@@ -156,9 +156,28 @@ const conversationService = {
         Conversation.countDocuments(filter),
       ]);
 
+      const privateConversationIds = items
+        .filter((c) => c.type === 'private')
+        .map((c) => c._id);
+
+      const otherMembers = privateConversationIds.length
+        ? await ConversationMember.find({
+            conversationId: { $in: privateConversationIds },
+            userId: { $ne: userId },
+          }).populate({ path: 'userId', select: '_id username avatar status' })
+        : [];
+
+      const otherMemberByConversationId = new Map(
+        otherMembers.map((m) => [String(m.conversationId), m.userId]),
+      );
+
       const enrichedItems = items.map((conversation) => ({
         ...conversation.toObject(),
         memberSetting: settingByConversationId.get(String(conversation._id)) || null,
+        otherMember:
+          conversation.type === 'private'
+            ? otherMemberByConversationId.get(String(conversation._id)) || null
+            : null,
       }));
 
       const totalPages = Math.ceil(total / pageSize);

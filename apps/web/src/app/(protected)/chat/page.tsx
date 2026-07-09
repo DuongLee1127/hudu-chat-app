@@ -7,13 +7,8 @@ import { useRouter } from 'next/navigation';
 import type { AxiosError } from 'axios';
 
 import { useGetMe, useLogout } from '@/hook/useAuth';
-import {
-  useSearchUsers,
-  useGetListBlockUser,
-  useBlockUser,
-  useUnBlockUser,
-  useViewProfilePublic,
-} from '@/hook/useUser';
+import { useSearchUsers, useGetListBlockUser, useBlockUser, useUnBlockUser } from '@/hook/useUser';
+import { useConversationDetail, useCreateDirectConversation } from '@/hook/useConversations';
 import { notify } from '@/lib/notify';
 import { useChatStore } from '@/store/useChatStore';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
@@ -29,16 +24,17 @@ const BLOCKED_LIST_PARAMS = { page: 1, pageSize: 50 };
 
 const ChatPage = () => {
   const router = useRouter();
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
+  const [pendingContactId, setPendingContactId] = useState<string | null>(null);
 
-  const selectedUserId = useChatStore((s) => s.selectedUserId);
-  const setSelectedUserId = useChatStore((s) => s.setSelectedUserId);
+  const selectedConversationId = useChatStore((s) => s.selectedConversationId);
+  const setSelectedConversationId = useChatStore((s) => s.setSelectedConversationId);
   const searchQuery = useChatStore((s) => s.searchQuery);
   const setSearchQuery = useChatStore((s) => s.setSearchQuery);
-  const messagesByUser = useChatStore((s) => s.messagesByUser);
+  const messagesByConversation = useChatStore((s) => s.messagesByConversation);
   const sendMessage = useChatStore((s) => s.sendMessage);
 
   const debouncedQuery = useDebouncedValue(searchQuery, 350);
@@ -53,19 +49,27 @@ const ChatPage = () => {
   });
   const contacts: User[] = searchData?.data.items ?? [];
 
-  const { data: selectedUserData } = useViewProfilePublic(selectedUserId ?? '');
-  const selectedUser = selectedUserData?.data.publicUser ?? null;
+  const { data: conversationDetailData } = useConversationDetail(selectedConversationId ?? '');
+  const otherUserId = useMemo(() => {
+    const conversation = conversationDetailData?.data.conversation;
+    if (conversation?.type !== 'private') return null;
+    const otherMember = conversationDetailData?.data.members.find(
+      (m) => m.userId._id !== currentUser?._id,
+    );
+    return otherMember?.userId._id ?? null;
+  }, [conversationDetailData, currentUser?._id]);
 
   const { data: blockedData } = useGetListBlockUser(BLOCKED_LIST_PARAMS);
   const blockedIds = useMemo(
     () => new Set((blockedData?.data.items ?? []).map((u) => u._id)),
     [blockedData],
   );
-  const isSelectedBlocked = selectedUserId ? blockedIds.has(selectedUserId) : false;
+  const isSelectedBlocked = otherUserId ? blockedIds.has(otherUserId) : false;
 
   const logoutMutation = useLogout();
   const blockMutation = useBlockUser();
   const unblockMutation = useUnBlockUser();
+  const createDirectMutation = useCreateDirectConversation();
 
   const handleLogout = () => {
     modal.confirm({
@@ -90,9 +94,9 @@ const ChatPage = () => {
   };
 
   const handleToggleBlock = () => {
-    if (!selectedUserId) return;
+    if (!otherUserId) return;
     if (isSelectedBlocked) {
-      unblockMutation.mutate(selectedUserId, {
+      unblockMutation.mutate(otherUserId, {
         onSuccess: () => notify.success('Đã bỏ chặn người dùng!'),
         onError: (err) => {
           const axiosErr = err as AxiosError<ApiResponse<null>>;
@@ -100,7 +104,7 @@ const ChatPage = () => {
         },
       });
     } else {
-      blockMutation.mutate(selectedUserId, {
+      blockMutation.mutate(otherUserId, {
         onSuccess: () => notify.success('Đã chặn người dùng!'),
         onError: (err) => {
           const axiosErr = err as AxiosError<ApiResponse<null>>;
@@ -108,6 +112,20 @@ const ChatPage = () => {
         },
       });
     }
+  };
+
+  const handleSelectContact = (user: User) => {
+    setPendingContactId(user._id);
+    createDirectMutation.mutate(user._id, {
+      onSuccess: (res) => {
+        setSelectedConversationId(res.data.conversation._id);
+      },
+      onError: (err) => {
+        const axiosErr = err as AxiosError<ApiResponse<null>>;
+        notify.error(axiosErr.response?.data?.message || 'Không thể mở cuộc trò chuyện!');
+      },
+      onSettled: () => setPendingContactId(null),
+    });
   };
 
   return (
@@ -118,8 +136,10 @@ const ChatPage = () => {
         loading={searchLoading}
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
-        selectedUserId={selectedUserId}
-        onSelect={(user) => setSelectedUserId(user._id)}
+        selectedConversationId={selectedConversationId}
+        onSelectConversation={(id) => setSelectedConversationId(id || null)}
+        onSelectContact={handleSelectContact}
+        contactActionLoadingId={pendingContactId}
         onOpenProfile={() => setProfileOpen(true)}
         onOpenBlocked={() => setBlockedOpen(true)}
         onLogout={handleLogout}
@@ -127,9 +147,10 @@ const ChatPage = () => {
       />
 
       <ChatWindow
-        selectedUser={selectedUser}
-        messages={selectedUserId ? (messagesByUser[selectedUserId] ?? []) : []}
-        onSend={(text) => selectedUserId && sendMessage(selectedUserId, text)}
+        conversationId={selectedConversationId}
+        currentUserId={currentUser?._id}
+        messages={selectedConversationId ? (messagesByConversation[selectedConversationId] ?? []) : []}
+        onSend={(text) => selectedConversationId && sendMessage(selectedConversationId, text)}
         isBlocked={isSelectedBlocked}
         onToggleBlock={handleToggleBlock}
         blockActionLoading={blockMutation.isPending || unblockMutation.isPending}

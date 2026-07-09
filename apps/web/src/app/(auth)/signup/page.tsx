@@ -178,7 +178,6 @@ const SignUpPage = () => {
               ]}
               hasFeedback
             >
-              x
               <Input.Password prefix={<LockOutlined />} placeholder="••••••••" />
             </Form.Item>
 

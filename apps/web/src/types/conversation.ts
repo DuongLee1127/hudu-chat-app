@@ -19,8 +19,16 @@ export interface MemberSetting {
   mutedUntil?: string | null;
 }
 
+export interface ConversationOtherMember {
+  _id: string;
+  username: string;
+  avatar?: string;
+  status?: 'online' | 'offline' | 'away';
+}
+
 export interface ConversationListItem extends Conversation {
   memberSetting: MemberSetting | null;
+  otherMember?: ConversationOtherMember | null;
 }
 
 export interface ConversationMember {

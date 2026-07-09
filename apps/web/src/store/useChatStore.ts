@@ -9,12 +9,12 @@ export interface ChatMessage {
 }
 
 interface ChatState {
-  selectedUserId: string | null;
+  selectedConversationId: string | null;
   searchQuery: string;
-  messagesByUser: Record<string, ChatMessage[]>;
-  setSelectedUserId: (id: string | null) => void;
+  messagesByConversation: Record<string, ChatMessage[]>;
+  setSelectedConversationId: (id: string | null) => void;
   setSearchQuery: (query: string) => void;
-  sendMessage: (userId: string, text: string) => void;
+  sendMessage: (conversationId: string, text: string) => void;
 }
 
 const formatTime = () =>
@@ -23,20 +23,20 @@ const formatTime = () =>
 export const useChatStore = create<ChatState>()(
   persist(
     (set) => ({
-      selectedUserId: null,
+      selectedConversationId: null,
       searchQuery: '',
-      messagesByUser: {},
+      messagesByConversation: {},
 
-      setSelectedUserId: (id) => set({ selectedUserId: id }),
+      setSelectedConversationId: (id) => set({ selectedConversationId: id }),
 
       setSearchQuery: (query) => set({ searchQuery: query }),
 
-      sendMessage: (userId, text) =>
+      sendMessage: (conversationId, text) =>
         set((state) => {
           const trimmed = text.trim();
           if (!trimmed) return state;
 
-          const thread = state.messagesByUser[userId] ?? [];
+          const thread = state.messagesByConversation[conversationId] ?? [];
           const newMessage: ChatMessage = {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             text: trimmed,
@@ -45,9 +45,9 @@ export const useChatStore = create<ChatState>()(
           };
 
           return {
-            messagesByUser: {
-              ...state.messagesByUser,
-              [userId]: [...thread, newMessage],
+            messagesByConversation: {
+              ...state.messagesByConversation,
+              [conversationId]: [...thread, newMessage],
             },
           };
         }),
@@ -56,8 +56,8 @@ export const useChatStore = create<ChatState>()(
       name: 'hudu-chat-storage',
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
-        messagesByUser: state.messagesByUser,
-        selectedUserId: state.selectedUserId,
+        messagesByConversation: state.messagesByConversation,
+        selectedConversationId: state.selectedConversationId,
       }),
     },
   ),

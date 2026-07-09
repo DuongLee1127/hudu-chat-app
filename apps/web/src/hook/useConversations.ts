@@ -24,7 +24,8 @@ export function useConversationDetail(id: string) {
 export function useCreateDirectConversation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (targetUserId: string) => conversationService.createDirectConversation(targetUserId),
+    mutationFn: (targetUserId: string) =>
+      conversationService.createDirectConversation(targetUserId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
@@ -34,7 +35,8 @@ export function useCreateDirectConversation() {
 export function useCreateGroupConversation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: CreateGroupPayload) => conversationService.createGroupConversation(payload),
+    mutationFn: (payload: CreateGroupPayload) =>
+      conversationService.createGroupConversation(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },

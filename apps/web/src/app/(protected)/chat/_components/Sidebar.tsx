@@ -10,6 +10,7 @@ import {
   Flex,
   Input,
   Skeleton,
+  Spin,
   Tabs,
   Typography,
 } from 'antd';
@@ -35,8 +36,10 @@ interface SidebarProps {
   loading: boolean;
   searchValue: string;
   onSearchChange: (value: string) => void;
-  selectedUserId: string | null;
-  onSelect: (user: User) => void;
+  selectedConversationId: string | null;
+  onSelectConversation: (conversationId: string) => void;
+  onSelectContact: (user: User) => void;
+  contactActionLoadingId?: string | null;
   onOpenProfile: () => void;
   onOpenBlocked: () => void;
   onLogout: () => void;
@@ -49,8 +52,10 @@ const Sidebar = ({
   loading,
   searchValue,
   onSearchChange,
-  selectedUserId,
-  onSelect,
+  selectedConversationId,
+  onSelectConversation,
+  onSelectContact,
+  contactActionLoadingId,
   onOpenProfile,
   onOpenBlocked,
   onLogout,
@@ -70,6 +75,11 @@ const Sidebar = ({
     if (key === 'profile') onOpenProfile();
     if (key === 'blocked') onOpenBlocked();
     if (key === 'logout') onLogout();
+  };
+
+  const handleGroupCreated = (conversationId: string) => {
+    onSelectConversation(conversationId);
+    setActiveTab('conversations');
   };
 
   return (
@@ -153,7 +163,10 @@ const Sidebar = ({
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 12px' }}>
         {activeTab === 'conversations' && (
-          <ConversationsList selectedConversationId={null} onSelect={() => {}} />
+          <ConversationsList
+            selectedConversationId={selectedConversationId}
+            onSelect={onSelectConversation}
+          />
         )}
 
         {activeTab === 'contacts' && (
@@ -178,15 +191,16 @@ const Sidebar = ({
               contacts.map((user) => (
                 <div
                   key={user._id}
-                  onClick={() => onSelect(user)}
+                  onClick={() => onSelectContact(user)}
                   className="chat-list-item"
                   style={{
                     padding: '10px 12px',
                     borderRadius: 12,
                     cursor: 'pointer',
-                    background: selectedUserId === user._id ? '#eef0ff' : 'transparent',
+                    background: 'transparent',
                     transition: 'background 0.2s',
                     marginBottom: 2,
+                    opacity: contactActionLoadingId === user._id ? 0.6 : 1,
                   }}
                 >
                   <Flex gap={12} align="center">
@@ -207,6 +221,7 @@ const Sidebar = ({
                         {user.bio || user.email}
                       </Text>
                     </Flex>
+                    {contactActionLoadingId === user._id && <Spin size="small" />}
                   </Flex>
                 </div>
               ))}
@@ -214,7 +229,11 @@ const Sidebar = ({
         )}
       </div>
 
-      <CreateGroupModal open={createGroupOpen} onClose={() => setCreateGroupOpen(false)} />
+      <CreateGroupModal
+        open={createGroupOpen}
+        onClose={() => setCreateGroupOpen(false)}
+        onCreated={handleGroupCreated}
+      />
     </div>
   );
 };

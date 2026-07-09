@@ -1,22 +1,26 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Avatar, Button, Dropdown, Empty, Input, Typography } from 'antd';
+import { Alert, Avatar, Button, Dropdown, Empty, Input, Skeleton, Typography } from 'antd';
 import {
   SendOutlined,
   SmileOutlined,
   MoreOutlined,
   StopOutlined,
   MessageOutlined,
+  TeamOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
-import type { User } from '@/types/user';
+import { useConversationDetail } from '@/hook/useConversations';
 import type { ChatMessage } from '@/store/useChatStore';
 import { colorForId, initialOf } from '@/lib/avatar';
+import GroupSettingsModal from './GroupSettingsModal';
 
 const { Text, Title } = Typography;
 
 interface ChatWindowProps {
-  selectedUser: User | null;
+  conversationId: string | null;
+  currentUserId?: string;
   messages: ChatMessage[];
   onSend: (text: string) => void;
   isBlocked: boolean;
@@ -25,7 +29,8 @@ interface ChatWindowProps {
 }
 
 const ChatWindow = ({
-  selectedUser,
+  conversationId,
+  currentUserId,
   messages,
   onSend,
   isBlocked,
@@ -33,13 +38,27 @@ const ChatWindow = ({
   blockActionLoading,
 }: ChatWindowProps) => {
   const [draft, setDraft] = useState('');
+  const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const { data, isLoading } = useConversationDetail(conversationId ?? '');
+  const conversation = data?.data.conversation;
+  const members = data?.data.members ?? [];
+  const otherMember =
+    conversation?.type === 'private'
+      ? members.find((m) => m.userId._id !== currentUserId)?.userId
+      : null;
+
+  const isGroup = conversation?.type === 'group';
+  const displayName = isGroup ? conversation?.name || 'Nhóm chat' : otherMember?.username;
+  const avatarUrl = isGroup ? conversation?.avatar : otherMember?.avatar;
+  const canBlock = !isGroup && !!otherMember;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, selectedUser?._id]);
+  }, [messages.length, conversationId]);
 
-  if (!selectedUser) {
+  if (!conversationId) {
     return (
       <div
         style={{
@@ -54,10 +73,18 @@ const ChatWindow = ({
           image={<MessageOutlined style={{ fontSize: 64, color: '#c6c9e8' }} />}
           description={
             <Text type="secondary">
-              Chọn một người dùng ở danh sách bên trái để bắt đầu trò chuyện
+              Chọn một cuộc trò chuyện ở danh sách bên trái để bắt đầu nhắn tin
             </Text>
           }
         />
+      </div>
+    );
+  }
+
+  if (isLoading || !conversation) {
+    return (
+      <div style={{ flex: 1, background: '#f4f5fb', padding: 24 }}>
+        <Skeleton avatar paragraph={{ rows: 1 }} active />
       </div>
     );
   }
@@ -84,40 +111,66 @@ const ChatWindow = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Avatar
             size={40}
-            src={selectedUser.avatar || undefined}
-            style={{ backgroundColor: colorForId(selectedUser._id) }}
+            src={avatarUrl || undefined}
+            icon={isGroup ? <TeamOutlined /> : undefined}
+            style={{ backgroundColor: colorForId(conversation._id) }}
           >
-            {initialOf(selectedUser.username)}
+            {!isGroup && displayName ? initialOf(displayName) : undefined}
           </Avatar>
           <div>
             <Title level={5} style={{ margin: 0 }}>
-              {selectedUser.username}
+              {displayName || 'Người dùng'}
             </Title>
-            <Text
-              type={selectedUser.status === 'online' ? 'success' : 'secondary'}
-              style={{ fontSize: 12 }}
-            >
-              {selectedUser.status === 'online' ? '● Đang hoạt động' : 'Ngoại tuyến'}
-            </Text>
+            {isGroup ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {members.length} thành viên
+              </Text>
+            ) : (
+              <Text
+                type={otherMember?.status === 'online' ? 'success' : 'secondary'}
+                style={{ fontSize: 12 }}
+              >
+                {otherMember?.status === 'online' ? '● Đang hoạt động' : 'Ngoại tuyến'}
+              </Text>
+            )}
           </div>
         </div>
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'block',
-                icon: <StopOutlined />,
-                danger: !isBlocked,
-                label: isBlocked ? 'Bỏ chặn người dùng' : 'Chặn người dùng',
-              },
-            ],
-            onClick: onToggleBlock,
-          }}
-          trigger={['click']}
-          disabled={blockActionLoading}
-        >
-          <Button type="text" icon={<MoreOutlined />} loading={blockActionLoading} />
-        </Dropdown>
+        {canBlock && (
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'block',
+                  icon: <StopOutlined />,
+                  danger: !isBlocked,
+                  label: isBlocked ? 'Bỏ chặn người dùng' : 'Chặn người dùng',
+                },
+              ],
+              onClick: onToggleBlock,
+            }}
+            trigger={['click']}
+            disabled={blockActionLoading}
+          >
+            <Button type="text" icon={<MoreOutlined />} loading={blockActionLoading} />
+          </Dropdown>
+        )}
+        {isGroup && (
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'group-settings',
+                  icon: <SettingOutlined />,
+                  label: 'Quản lý nhóm',
+                },
+              ],
+              onClick: () => setGroupSettingsOpen(true),
+            }}
+            trigger={['click']}
+          >
+            <Button type="text" icon={<MoreOutlined />} />
+          </Dropdown>
+        )}
       </div>
 
       {isBlocked && (
@@ -125,7 +178,7 @@ const ChatWindow = ({
           type="warning"
           showIcon
           banner
-          title="Bạn đã chặn người dùng này. Bỏ chặn để có thể tiếp tục nhắn tin."
+          message="Bạn đã chặn người dùng này. Bỏ chặn để có thể tiếp tục nhắn tin."
         />
       )}
 
@@ -191,6 +244,17 @@ const ChatWindow = ({
           />
         </div>
       </div>
+
+      {isGroup && (
+        <GroupSettingsModal
+          open={groupSettingsOpen}
+          onClose={() => setGroupSettingsOpen(false)}
+          conversationId={conversation._id}
+          conversationName={conversation.name}
+          members={members}
+          currentUserId={currentUserId}
+        />
+      )}
     </div>
   );
 };

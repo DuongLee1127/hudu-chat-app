@@ -1,39 +1,66 @@
 'use client';
 
 import { useState } from 'react';
-import { Avatar, Checkbox, Empty, Flex, Input, Modal, Typography } from 'antd';
-import { TeamOutlined } from '@ant-design/icons';
+import { App, Avatar, Checkbox, Empty, Flex, Input, Modal, Skeleton, Typography } from 'antd';
+import { TeamOutlined, SearchOutlined } from '@ant-design/icons';
+import type { AxiosError } from 'axios';
 import { colorForId, initialOf } from '@/lib/avatar';
+import { useSearchUsers } from '@/hook/useUser';
+import { useCreateGroupConversation } from '@/hook/useConversations';
+import { useDebouncedValue } from '@/hook/useDebouncedValue';
+import type { ApiResponse } from '@/types/api';
 
 const { Text } = Typography;
-
-/**
- * MOCK UI ONLY — danh sách liên hệ tĩnh, chưa nối API POST /api/conversations/group.
- */
-const MOCK_CONTACTS = [
-  { _id: 'mock-user-1', username: 'Nguyễn Văn A', avatar: '' },
-  { _id: 'mock-user-2', username: 'Trần Thị B', avatar: '' },
-  { _id: 'mock-user-3', username: 'Lê Văn C', avatar: '' },
-  { _id: 'mock-user-4', username: 'Phạm Thị D', avatar: '' },
-];
 
 interface CreateGroupModalProps {
   open: boolean;
   onClose: () => void;
+  onCreated?: (conversationId: string) => void;
 }
 
-const CreateGroupModal = ({ open, onClose }: CreateGroupModalProps) => {
+const CreateGroupModal = ({ open, onClose, onCreated }: CreateGroupModalProps) => {
+  const { message } = App.useApp();
   const [groupName, setGroupName] = useState('');
+  const [memberQuery, setMemberQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const debouncedQuery = useDebouncedValue(memberQuery, 350);
+  const { data, isLoading } = useSearchUsers({ q: debouncedQuery, page: 1, pageSize: 30 });
+  const contacts = data?.data.items ?? [];
+
+  const createGroupMutation = useCreateGroupConversation();
 
   const toggleMember = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
-  const handleClose = () => {
+  const resetState = () => {
     setGroupName('');
+    setMemberQuery('');
     setSelectedIds([]);
+  };
+
+  const handleClose = () => {
+    resetState();
     onClose();
+  };
+
+  const handleCreate = () => {
+    createGroupMutation.mutate(
+      { name: groupName.trim(), memberIds: selectedIds },
+      {
+        onSuccess: (res) => {
+          message.success('Đã tạo nhóm chat!');
+          onCreated?.(res.data.conversation._id);
+          resetState();
+          onClose();
+        },
+        onError: (err) => {
+          const axiosErr = err as AxiosError<ApiResponse<null>>;
+          message.error(axiosErr.response?.data?.message || 'Tạo nhóm chat thất bại!');
+        },
+      },
+    );
   };
 
   return (
@@ -41,9 +68,10 @@ const CreateGroupModal = ({ open, onClose }: CreateGroupModalProps) => {
       title="Tạo nhóm chat"
       open={open}
       onCancel={handleClose}
-      onOk={handleClose}
+      onOk={handleCreate}
       okText="Tạo nhóm"
       cancelText="Hủy"
+      confirmLoading={createGroupMutation.isPending}
       okButtonProps={{ disabled: !groupName.trim() || selectedIds.length === 0 }}
     >
       <Flex vertical gap={16}>
@@ -64,11 +92,29 @@ const CreateGroupModal = ({ open, onClose }: CreateGroupModalProps) => {
           <Text type="secondary" style={{ fontSize: 12 }}>
             Chọn thành viên
           </Text>
-          <div style={{ marginTop: 8, maxHeight: 260, overflowY: 'auto' }}>
-            {MOCK_CONTACTS.length === 0 ? (
-              <Empty description="Không có liên hệ nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              MOCK_CONTACTS.map((contact) => (
+          <Input
+            prefix={<SearchOutlined style={{ color: '#9a9ab0' }} />}
+            placeholder="Tìm kiếm người dùng..."
+            variant="filled"
+            allowClear
+            value={memberQuery}
+            onChange={(e) => setMemberQuery(e.target.value)}
+            style={{ marginTop: 4, marginBottom: 8 }}
+          />
+          <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+            {isLoading && (
+              <>
+                <Skeleton avatar paragraph={{ rows: 1 }} active />
+                <Skeleton avatar paragraph={{ rows: 1 }} active style={{ marginTop: 12 }} />
+              </>
+            )}
+
+            {!isLoading && contacts.length === 0 && (
+              <Empty description="Không tìm thấy người dùng nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            )}
+
+            {!isLoading &&
+              contacts.map((contact) => (
                 <div
                   key={contact._id}
                   onClick={() => toggleMember(contact._id)}
@@ -86,8 +132,7 @@ const CreateGroupModal = ({ open, onClose }: CreateGroupModalProps) => {
                     <Text>{contact.username}</Text>
                   </Flex>
                 </div>
-              ))
-            )}
+              ))}
           </div>
         </div>
       </Flex>
