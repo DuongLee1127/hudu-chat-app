@@ -28,14 +28,25 @@ axiosClient.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalRequest = error.config as CustomAxiosRequestConfig | undefined;
+    const isAuthRoute =
+      originalRequest?.url?.includes('/auth/refresh') || originalRequest?.url?.includes('/auth/login');
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isAuthRoute
+    ) {
       originalRequest._retry = true;
       try {
         await axiosClient.post('/auth/refresh');
         return axiosClient(originalRequest);
       } catch (refreshError) {
-        if (typeof window !== 'undefined') {
+        const isPublicPage =
+          typeof window !== 'undefined' &&
+          (window.location.pathname === '/signin' || window.location.pathname === '/signup');
+
+        if (typeof window !== 'undefined' && !isPublicPage) {
           window.location.href = '/signin';
         }
         return Promise.reject(refreshError);

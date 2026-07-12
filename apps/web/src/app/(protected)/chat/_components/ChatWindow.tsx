@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Avatar, Button, Dropdown, Empty, Input, Skeleton, Typography } from 'antd';
 import {
   SendOutlined,
@@ -14,7 +14,11 @@ import {
 import { useConversationDetail } from '@/hook/useConversations';
 import type { Message } from '@/types/message';
 import { colorForId, initialOf } from '@/lib/avatar';
+import { useSocketContext } from '@/providers/SocketProvider';
+import { useChatStore } from '@/store/useChatStore';
 import GroupSettingsModal from './GroupSettingsModal';
+
+const TYPING_STOP_DELAY_MS = 2500;
 
 const { Text, Title } = Typography;
 
@@ -47,6 +51,16 @@ const ChatWindow = ({
   const [draft, setDraft] = useState('');
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { startTyping, stopTyping } = useSocketContext();
+  const typingMap = useChatStore((s) =>
+    conversationId ? s.typingByConversation[conversationId] : undefined,
+  );
+  const isOtherTyping = useMemo(
+    () => Object.keys(typingMap || {}).some((id) => id !== currentUserId),
+    [typingMap, currentUserId],
+  );
 
   const { data, isLoading } = useConversationDetail(conversationId ?? '');
   const conversation = data?.data.conversation;
@@ -64,6 +78,24 @@ const ChatWindow = ({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, conversationId]);
+
+  useEffect(() => {
+    return () => {
+      if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+      if (conversationId) stopTyping(conversationId);
+    };
+  }, [conversationId, stopTyping]);
+
+  const handleDraftChange = (value: string) => {
+    setDraft(value);
+    if (!conversationId) return;
+
+    startTyping(conversationId);
+    if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+    typingStopTimerRef.current = setTimeout(() => {
+      stopTyping(conversationId);
+    }, TYPING_STOP_DELAY_MS);
+  };
 
   if (!conversationId) {
     return (
@@ -100,6 +132,8 @@ const ChatWindow = ({
     if (!draft.trim() || isBlocked) return;
     onSend(draft);
     setDraft('');
+    if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+    if (conversationId) stopTyping(conversationId);
   };
 
   return (
@@ -128,7 +162,11 @@ const ChatWindow = ({
             <Title level={5} style={{ margin: 0 }}>
               {displayName || 'Người dùng'}
             </Title>
-            {isGroup ? (
+            {isOtherTyping ? (
+              <Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
+                Đang nhập...
+              </Text>
+            ) : isGroup ? (
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {members.length} thành viên
               </Text>
@@ -185,7 +223,7 @@ const ChatWindow = ({
           type="warning"
           showIcon
           banner
-          message="Bạn đã chặn người dùng này. Bỏ chặn để có thể tiếp tục nhắn tin."
+          title="Bạn đã chặn người dùng này. Bỏ chặn để có thể tiếp tục nhắn tin."
         />
       )}
 
@@ -225,9 +263,18 @@ const ChatWindow = ({
                 >
                   {msg.isDeleted ? 'Tin nhắn đã được thu hồi' : msg.content}
                 </div>
-                <Text type="secondary" style={{ fontSize: 11, marginTop: 4 }}>
-                  {formatMessageTime(msg.createdAt)}
-                  {msg.isEdited && !msg.isDeleted ? ' · Đã chỉnh sửa' : ''}
+                <Text
+                  type={msg.status === 'failed' ? 'danger' : 'secondary'}
+                  style={{ fontSize: 11, marginTop: 4 }}
+                >
+                  {msg.status === 'sending' && 'Đang gửi...'}
+                  {msg.status === 'failed' && 'Gửi thất bại'}
+                  {(!msg.status || msg.status === 'sent') && (
+                    <>
+                      {formatMessageTime(msg.createdAt)}
+                      {msg.isEdited && !msg.isDeleted ? ' · Đã chỉnh sửa' : ''}
+                    </>
+                  )}
                 </Text>
               </div>
             );
@@ -243,7 +290,7 @@ const ChatWindow = ({
             variant="filled"
             value={draft}
             disabled={isBlocked || sendLoading}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => handleDraftChange(e.target.value)}
             onPressEnter={handleSend}
             style={{ borderRadius: 20 }}
             suffix={<SmileOutlined style={{ color: 'rgba(0,0,0,0.35)' }} />}

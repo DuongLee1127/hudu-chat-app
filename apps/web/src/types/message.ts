@@ -36,6 +36,9 @@ export interface Message {
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Client-only fields, never persisted on the backend. */
+  tempId?: string;
+  status?: 'sending' | 'sent' | 'failed';
 }
 
 export interface ListMessagesParams {
@@ -54,4 +57,5 @@ export interface SendMessagePayload {
   content?: string;
   attachmentIds?: string[];
   replyToMessageId?: string;
+  tempId?: string;
 }

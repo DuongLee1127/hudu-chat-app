@@ -1,26 +1,7 @@
 import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
 import User from '@/models/user';
-
-const getMembership = async (conversationId: string, userId: string) => {
-  return ConversationMember.findOne({ conversationId, userId });
-};
-
-const assertMember = async (conversationId: string, userId: string) => {
-  const membership = await getMembership(conversationId, userId);
-  if (!membership) {
-    throw new Error('Bạn không phải thành viên của hội thoại này!');
-  }
-  return membership;
-};
-
-const assertAdmin = async (conversationId: string, userId: string) => {
-  const membership = await assertMember(conversationId, userId);
-  if (membership.role !== 'admin') {
-    throw new Error('Chỉ quản trị viên mới có quyền thực hiện hành động này!');
-  }
-  return membership;
-};
+import { assertMember, assertAdmin } from '@/services/membershipService';
 
 const getMembersWithUser = async (conversationId: string) => {
   return ConversationMember.find({ conversationId }).populate({

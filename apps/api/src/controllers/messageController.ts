@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import messageService from '@/services/messageService';
 import { sendSuccess, sendError } from '@/helpers';
+import { getIO } from '@/socket';
 
 const messageController = {
   listMessages: async (req: Request, res: Response) => {
@@ -65,7 +66,8 @@ const messageController = {
       }
 
       const { content } = req.body;
-      const message = await messageService.editMessage(String(userId), String(id), content);
+      const message: any = await messageService.editMessage(String(userId), String(id), content);
+      getIO().to(`conversation:${message.conversationId}`).emit('message:updated', { message });
       return sendSuccess(res, { message }, 'Edit message success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
@@ -85,6 +87,9 @@ const messageController = {
       }
 
       const result = await messageService.deleteMessage(String(userId), String(id));
+      getIO()
+        .to(`conversation:${result.conversationId}`)
+        .emit('message:deleted', { messageId: result.messageId, conversationId: result.conversationId });
       return sendSuccess(res, result, 'Delete message success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);

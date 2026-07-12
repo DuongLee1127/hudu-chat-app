@@ -1,3 +1,4 @@
+import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -6,6 +7,7 @@ import swaggerUi from 'swagger-ui-express';
 
 import { swaggerSpec } from '@/config/swagger';
 import { connect } from '@/config/db';
+import { initSocket } from '@/socket';
 
 import authRouter from '@/routes/authRouter';
 import userRouter from '@/routes/userRouter';
@@ -35,7 +37,10 @@ app.use('/api/users', userRouter);
 app.use('/api/conversations', conversationRouter);
 app.use('/api/messages', messageRouter);
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`Swagger UI is available at http://localhost:${PORT}/api-docs`);
 });

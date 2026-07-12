@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { messageService } from '@/services/message.service';
-import type { ListMessagesParams, SendMessagePayload } from '@/types/message';
+import { useSocketContext } from '@/providers/SocketProvider';
+import type {
+  ListMessagesParams,
+  ListMessagesResult,
+  Message,
+  SendMessagePayload,
+} from '@/types/message';
+import type { ApiResponse } from '@/types/api';
 
 export function useListMessages(conversationId: string, params: ListMessagesParams = {}) {
   return useQuery({
@@ -12,14 +19,96 @@ export function useListMessages(conversationId: string, params: ListMessagesPara
 
 export function useSendMessage(conversationId: string) {
   const queryClient = useQueryClient();
+  const { connected, sendMessage } = useSocketContext();
+
   return useMutation({
-    mutationFn: (payload: SendMessagePayload) =>
-      messageService.sendMessage(conversationId, payload),
+    mutationFn: async (payload: SendMessagePayload) => {
+      const tempId = payload.tempId || `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      const meResponse = queryClient.getQueryData<{
+        data: { _id: string; username: string; avatar?: string };
+      }>(['auth', 'me']);
+
+      const optimisticMessage: Message = {
+        _id: tempId,
+        conversationId,
+        senderId: meResponse
+          ? {
+              _id: meResponse.data._id,
+              username: meResponse.data.username,
+              avatar: meResponse.data.avatar,
+            }
+          : { _id: '', username: '' },
+        content: payload.content || '',
+        type: payload.type || 'text',
+        attachmentIds: [],
+        replyToMessageId: null,
+        isEdited: false,
+        isDeleted: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        tempId,
+        status: 'sending',
+      };
+
+      queryClient.setQueriesData<ApiResponse<ListMessagesResult>>(
+        { queryKey: ['messages', conversationId], exact: false },
+        (old) =>
+          old
+            ? { ...old, data: { ...old.data, items: [...old.data.items, optimisticMessage] } }
+            : old,
+      );
+
+      if (!connected) {
+        try {
+          const res = await messageService.sendMessage(conversationId, { ...payload, tempId });
+          return res;
+        } catch (error) {
+          markMessageFailed(queryClient, conversationId, tempId);
+          throw error;
+        }
+      }
+
+      const ack = await sendMessage(conversationId, { ...payload, tempId });
+      if (!ack.success || !ack.data) {
+        markMessageFailed(queryClient, conversationId, tempId);
+        throw new Error(ack.error || 'Gửi tin nhắn thất bại!');
+      }
+      return {
+        success: true,
+        message: 'ok',
+        data: { message: ack.data },
+        error: null,
+      } as ApiResponse<{
+        message: Message;
+      }>;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
+}
+
+function markMessageFailed(
+  queryClient: ReturnType<typeof useQueryClient>,
+  conversationId: string,
+  tempId: string,
+) {
+  queryClient.setQueriesData<ApiResponse<ListMessagesResult>>(
+    { queryKey: ['messages', conversationId], exact: false },
+    (old) =>
+      old
+        ? {
+            ...old,
+            data: {
+              ...old.data,
+              items: old.data.items.map((m) =>
+                m.tempId === tempId ? { ...m, status: 'failed' as const } : m,
+              ),
+            },
+          }
+        : old,
+  );
 }
 
 export function useEditMessage(conversationId: string) {

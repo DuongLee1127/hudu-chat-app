@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 
+import { SocketProvider } from '@/providers/SocketProvider';
+
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
   const token = cookieStore.get('accessToken');
@@ -8,5 +10,9 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     redirect('/signin');
   }
 
-  return <section className="min-h-full">{children}</section>;
+  return (
+    <section className="min-h-full">
+      <SocketProvider>{children}</SocketProvider>
+    </section>
+  );
 }

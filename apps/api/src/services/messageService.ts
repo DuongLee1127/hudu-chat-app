@@ -3,24 +3,9 @@ import Message from '@/models/message';
 import Attachment from '@/models/attachment';
 import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
+import { assertMember, assertAdmin } from '@/services/membershipService';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000; // 15 phút
-
-const assertMember = async (conversationId: string, userId: string) => {
-  const membership = await ConversationMember.findOne({ conversationId, userId });
-  if (!membership) {
-    throw new Error('Bạn không phải thành viên của hội thoại này!');
-  }
-  return membership;
-};
-
-const assertAdmin = async (conversationId: string, userId: string) => {
-  const membership = await assertMember(conversationId, userId);
-  if (membership.role !== 'admin') {
-    throw new Error('Chỉ quản trị viên mới có quyền thực hiện hành động này!');
-  }
-  return membership;
-};
 
 const populateMessage = (query: any) =>
   query
@@ -169,7 +154,7 @@ const messageService = {
       message.attachmentIds = [];
       await message.save();
 
-      return { success: true };
+      return { success: true, conversationId: String(message.conversationId), messageId: String(message._id) };
     } catch (error) {
       throw error;
     }
