@@ -23,6 +23,15 @@ const userService = {
     }
   },
 
+  getAllUsers: async () => {
+    try {
+      const users = await User.find().select('-password');
+      return users;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   searchUsers: async (
     currentUserId: string,
     q: string,

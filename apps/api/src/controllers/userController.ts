@@ -18,6 +18,15 @@ const userController = {
     }
   },
 
+  getAllUsers: async (req: Request, res: Response) => {
+    try {
+      const result = await userService.getAllUsers();
+      return sendSuccess(res, result, 'Get all users success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
+    }
+  },
+
   searchUsers: async (req: Request, res: Response) => {
     try {
       const currentUserId = req.user?.id;

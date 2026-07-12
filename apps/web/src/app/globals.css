@@ -23,6 +23,45 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c3c6f0 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #c3c6f0;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #5b5bf6;
+}
+
+@media (prefers-color-scheme: dark) {
+  * {
+    scrollbar-color: #3a3a5c transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #3a3a5c;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: #8c5bf6;
+  }
+}
+
 .chat-list-item:hover {
   background: #f4f5fb !important;
 }
@@ -50,7 +89,12 @@ body {
   position: absolute;
   border-radius: 50%;
   filter: blur(60px);
-  background: radial-gradient(circle, rgba(91, 91, 246, 0.35), rgba(140, 91, 246, 0.12) 60%, transparent 75%);
+  background: radial-gradient(
+    circle,
+    rgba(91, 91, 246, 0.35),
+    rgba(140, 91, 246, 0.12) 60%,
+    transparent 75%
+  );
   pointer-events: none;
 }
 

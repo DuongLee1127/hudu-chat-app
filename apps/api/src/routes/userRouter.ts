@@ -108,6 +108,38 @@ const router = Router();
 
 /**
  * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Get list of all users
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Get all users success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
+/**
+ * @swagger
  * /api/users/search:
  *   get:
  *     summary: Search users by keyword
@@ -353,6 +385,7 @@ const router = Router();
 
 router.put('/me', authMiddleware, userController.updateMe);
 router.get('/search', authMiddleware, userController.searchUsers);
+router.get('/', authMiddleware, userController.getAllUsers);
 router.get('/me/blocks', authMiddleware, userController.getBlockedUsers);
 router.get('/:id', authMiddleware, userController.getUserProfile);
 router.post('/:id/block', authMiddleware, userController.blockUser);

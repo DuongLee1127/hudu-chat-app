@@ -242,6 +242,7 @@ const ChatWindow = ({
         {!messagesLoading &&
           messages.map((msg) => {
             const mine = msg.senderId._id === currentUserId;
+            const showSenderInfo = isGroup && !mine;
             return (
               <div
                 key={msg._id}
@@ -252,23 +253,46 @@ const ChatWindow = ({
                   marginBottom: 16,
                 }}
               >
+                {showSenderInfo && (
+                  <Text type="secondary" style={{ fontSize: 12, marginBottom: 2, marginLeft: 36 }}>
+                    {msg.senderId.username}
+                  </Text>
+                )}
                 <div
                   className="max-w-[85%] sm:max-w-[70%]"
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    background: mine ? '#5b5bf6' : '#fff',
-                    color: mine ? '#fff' : 'rgba(0,0,0,0.88)',
-                    boxShadow: '0 2px 6px rgba(20,20,60,0.06)',
-                    wordBreak: 'break-word',
-                    fontStyle: msg.isDeleted ? 'italic' : 'normal',
-                  }}
+                  style={{ display: 'flex', alignItems: 'flex-end', gap: 8, minWidth: 0 }}
                 >
-                  {msg.isDeleted ? 'Tin nhắn đã được thu hồi' : msg.content}
+                  {showSenderInfo && (
+                    <Avatar
+                      size={28}
+                      src={msg.senderId.avatar || undefined}
+                      style={{ backgroundColor: colorForId(msg.senderId._id), flexShrink: 0 }}
+                    >
+                      {initialOf(msg.senderId.username)}
+                    </Avatar>
+                  )}
+                  <div
+                    style={{
+                      minWidth: 0,
+                      padding: '10px 16px',
+                      borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                      background: mine ? '#5b5bf6' : '#fff',
+                      color: mine ? '#fff' : 'rgba(0,0,0,0.88)',
+                      boxShadow: '0 2px 6px rgba(20,20,60,0.06)',
+                      wordBreak: 'break-word',
+                      fontStyle: msg.isDeleted ? 'italic' : 'normal',
+                    }}
+                  >
+                    {msg.isDeleted ? 'Tin nhắn đã được thu hồi' : msg.content}
+                  </div>
                 </div>
                 <Text
                   type={msg.status === 'failed' ? 'danger' : 'secondary'}
-                  style={{ fontSize: 11, marginTop: 4 }}
+                  style={{
+                    fontSize: 11,
+                    marginTop: 4,
+                    marginLeft: showSenderInfo ? 36 : 0,
+                  }}
                 >
                   {msg.status === 'sending' && 'Đang gửi...'}
                   {msg.status === 'failed' && 'Gửi thất bại'}

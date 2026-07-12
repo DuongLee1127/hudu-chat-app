@@ -65,7 +65,7 @@ const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
   };
 
   return (
-    <Drawer title="Hồ sơ cá nhân" open={open} onClose={onClose} width={isMobile ? '100%' : 420}>
+    <Drawer title="Hồ sơ cá nhân" open={open} onClose={onClose} size={isMobile ? '100%' : 420}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <Avatar
           size={80}
