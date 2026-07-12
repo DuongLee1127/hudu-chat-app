@@ -5,7 +5,7 @@ import { App, Avatar, Checkbox, Empty, Flex, Input, Modal, Skeleton, Typography 
 import { TeamOutlined, SearchOutlined } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
 import { colorForId, initialOf } from '@/lib/avatar';
-import { useSearchUsers } from '@/hook/useUser';
+import { useFriends } from '@/hook/useFriend';
 import { useCreateGroupConversation } from '@/hook/useConversations';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
 import { useIsMobile } from '@/hook/useMediaQuery';
@@ -27,7 +27,7 @@ const CreateGroupModal = ({ open, onClose, onCreated }: CreateGroupModalProps) =
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const debouncedQuery = useDebouncedValue(memberQuery, 350);
-  const { data, isLoading } = useSearchUsers({ q: debouncedQuery, page: 1, pageSize: 30 });
+  const { data, isLoading } = useFriends({ q: debouncedQuery, page: 1, pageSize: 30 });
   const contacts = data?.data.items ?? [];
 
   const createGroupMutation = useCreateGroupConversation();
@@ -113,7 +113,12 @@ const CreateGroupModal = ({ open, onClose, onCreated }: CreateGroupModalProps) =
             )}
 
             {!isLoading && contacts.length === 0 && (
-              <Empty description="Không tìm thấy người dùng nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <Empty
+                description={
+                  memberQuery ? 'Không tìm thấy bạn bè nào phù hợp' : 'Bạn chưa có bạn bè nào'
+                }
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
             )}
 
             {!isLoading &&

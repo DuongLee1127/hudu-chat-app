@@ -110,6 +110,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     };
 
+    const onFriendRequestChanged = () => {
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
+    };
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('message:created', onMessageCreated);
@@ -120,6 +125,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     socket.on('typing:start', onTypingStart);
     socket.on('typing:stop', onTypingStop);
     socket.on('message:read', onMessageRead);
+    socket.on('friend_request:new', onFriendRequestChanged);
+    socket.on('friend_request:accepted', onFriendRequestChanged);
+    socket.on('friend_request:removed', onFriendRequestChanged);
 
     return () => {
       socket.off('connect', onConnect);
@@ -132,6 +140,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socket.off('typing:start', onTypingStart);
       socket.off('typing:stop', onTypingStop);
       socket.off('message:read', onMessageRead);
+      socket.off('friend_request:new', onFriendRequestChanged);
+      socket.off('friend_request:accepted', onFriendRequestChanged);
+      socket.off('friend_request:removed', onFriendRequestChanged);
       socket.disconnect();
     };
   }, [

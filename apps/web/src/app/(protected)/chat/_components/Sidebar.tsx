@@ -22,11 +22,16 @@ import {
   LogoutOutlined,
   MoreOutlined,
   UsergroupAddOutlined,
+  UserAddOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import type { User } from '@/types/user';
 import { colorForId, initialOf } from '@/lib/avatar';
+import { useIncomingFriendRequests } from '@/hook/useFriend';
 import ConversationsList from './ConversationsList';
 import CreateGroupModal from './CreateGroupModal';
+import AddFriendModal from './AddFriendModal';
+import FriendRequestsModal from './FriendRequestsModal';
 
 const { Text, Title } = Typography;
 
@@ -63,9 +68,23 @@ const Sidebar = ({
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<'conversations' | 'contacts'>('conversations');
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [addFriendOpen, setAddFriendOpen] = useState(false);
+  const [friendRequestsOpen, setFriendRequestsOpen] = useState(false);
+
+  const { data: incomingData } = useIncomingFriendRequests();
+  const incomingCount = incomingData?.data.length ?? 0;
 
   const menuItems = [
     { key: 'profile', icon: <SettingOutlined />, label: 'Hồ sơ cá nhân' },
+    {
+      key: 'friendRequests',
+      icon: <TeamOutlined />,
+      label: (
+        <Badge count={incomingCount} size="small" offset={[8, 0]}>
+          Lời mời kết bạn
+        </Badge>
+      ),
+    },
     { key: 'blocked', icon: <StopOutlined />, label: 'Người dùng đã chặn' },
     { type: 'divider' as const },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
@@ -73,6 +92,7 @@ const Sidebar = ({
 
   const handleMenuClick = (key: string) => {
     if (key === 'profile') onOpenProfile();
+    if (key === 'friendRequests') setFriendRequestsOpen(true);
     if (key === 'blocked') onOpenBlocked();
     if (key === 'logout') onLogout();
   };
@@ -131,7 +151,15 @@ const Sidebar = ({
               onClick={() => setCreateGroupOpen(true)}
               title="Tạo nhóm chat"
             />
-          ) : null
+          ) : (
+            <Button
+              type="text"
+              size="small"
+              icon={<UserAddOutlined />}
+              onClick={() => setAddFriendOpen(true)}
+              title="Thêm bạn"
+            />
+          )
         }
         items={[
           { key: 'conversations', label: 'Trò chuyện' },
@@ -172,7 +200,11 @@ const Sidebar = ({
 
             {!loading && contacts.length === 0 && (
               <Empty
-                description="Không tìm thấy người dùng nào"
+                description={
+                  searchValue
+                    ? 'Không tìm thấy bạn bè nào phù hợp'
+                    : 'Bạn chưa có bạn bè nào. Nhấn nút thêm bạn để bắt đầu!'
+                }
                 style={{ marginTop: 60 }}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
@@ -224,6 +256,13 @@ const Sidebar = ({
         open={createGroupOpen}
         onClose={() => setCreateGroupOpen(false)}
         onCreated={handleGroupCreated}
+      />
+
+      <AddFriendModal open={addFriendOpen} onClose={() => setAddFriendOpen(false)} />
+
+      <FriendRequestsModal
+        open={friendRequestsOpen}
+        onClose={() => setFriendRequestsOpen(false)}
       />
     </div>
   );

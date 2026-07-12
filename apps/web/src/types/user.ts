@@ -30,3 +30,15 @@ export interface ListBlockUserParams {
   page?: number;
   pageSize?: number;
 }
+
+export interface GetFriendsParams {
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface FriendRequestItem {
+  _id: string;
+  user: User;
+  createdAt: string;
+}

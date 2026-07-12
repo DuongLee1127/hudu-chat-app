@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import type { AxiosError } from 'axios';
 
 import { useGetMe, useLogout } from '@/hook/useAuth';
-import { useSearchUsers, useGetListBlockUser, useBlockUser, useUnBlockUser } from '@/hook/useUser';
+import { useGetListBlockUser, useBlockUser, useUnBlockUser } from '@/hook/useUser';
+import { useFriends } from '@/hook/useFriend';
 import { useConversationDetail, useCreateDirectConversation } from '@/hook/useConversations';
 import { useListMessages, useSendMessage } from '@/hook/useMessages';
 import { notify } from '@/lib/notify';
@@ -43,12 +44,12 @@ const ChatPage = () => {
   const { data: meData } = useGetMe();
   const currentUser = meData?.data;
 
-  const { data: searchData, isLoading: searchLoading } = useSearchUsers({
+  const { data: friendsData, isLoading: friendsLoading } = useFriends({
     q: debouncedQuery,
     page: 1,
     pageSize: 30,
   });
-  const contacts: User[] = searchData?.data.items ?? [];
+  const contacts: User[] = friendsData?.data.items ?? [];
 
   const { data: conversationDetailData } = useConversationDetail(selectedConversationId ?? '');
   const otherUserId = useMemo(() => {
@@ -158,7 +159,7 @@ const ChatPage = () => {
         <Sidebar
           currentUser={currentUser}
           contacts={contacts}
-          loading={searchLoading}
+          loading={friendsLoading}
           searchValue={searchQuery}
           onSearchChange={setSearchQuery}
           selectedConversationId={selectedConversationId}

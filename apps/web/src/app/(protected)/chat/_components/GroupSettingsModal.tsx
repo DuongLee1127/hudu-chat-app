@@ -5,7 +5,7 @@ import { App, Avatar, Button, Empty, Flex, Input, Modal, Skeleton, Tag, Typograp
 import { SearchOutlined, UserDeleteOutlined, UserAddOutlined } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
 import { colorForId, initialOf } from '@/lib/avatar';
-import { useSearchUsers } from '@/hook/useUser';
+import { useFriends } from '@/hook/useFriend';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
 import { useIsMobile } from '@/hook/useMediaQuery';
 import {
@@ -46,7 +46,7 @@ const GroupSettingsModal = ({
     if (open) setName(conversationName || '');
   }, [open, conversationName]);
 
-  const { data: searchData, isLoading: searchLoading } = useSearchUsers({
+  const { data: searchData, isLoading: searchLoading } = useFriends({
     q: debouncedQuery,
     page: 1,
     pageSize: 30,
@@ -198,7 +198,7 @@ const GroupSettingsModal = ({
           <div style={{ maxHeight: 200, overflowY: 'auto' }}>
             {searchLoading && <Skeleton avatar paragraph={{ rows: 1 }} active />}
             {!searchLoading && debouncedQuery && searchResults.length === 0 && (
-              <Empty description="Không tìm thấy người dùng nào" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <Empty description="Không tìm thấy bạn bè nào phù hợp" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             )}
             {!searchLoading &&
               searchResults.map((user) => (

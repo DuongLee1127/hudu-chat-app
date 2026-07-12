@@ -13,6 +13,7 @@ import authRouter from '@/routes/authRouter';
 import userRouter from '@/routes/userRouter';
 import conversationRouter from '@/routes/conversationRouter';
 import messageRouter from '@/routes/messageRouter';
+import friendRouter from '@/routes/friendRouter';
 
 const PORT = process.env.PORT || 5000;
 dotenv.config();
@@ -36,6 +37,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/conversations', conversationRouter);
 app.use('/api/messages', messageRouter);
+app.use('/api/friends', friendRouter);
 
 const server = http.createServer(app);
 initSocket(server);

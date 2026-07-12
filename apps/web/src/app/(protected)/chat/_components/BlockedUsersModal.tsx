@@ -1,6 +1,6 @@
 'use client';
 
-import { Avatar, Button, Empty, List, Modal, Skeleton, Typography, App } from 'antd';
+import { Avatar, Button, Empty, Flex, Modal, Skeleton, Typography, App } from 'antd';
 import type { AxiosError } from 'axios';
 
 import { useGetListBlockUser, useUnBlockUser } from '@/hook/useUser';
@@ -47,38 +47,32 @@ const BlockedUsersModal = ({ open, onClose }: BlockedUsersModalProps) => {
         <Empty description="Bạn chưa chặn người dùng nào" />
       )}
 
-      {!isLoading && blockedUsers.length > 0 && (
-        <List
-          dataSource={blockedUsers}
-          renderItem={(user) => (
-            <List.Item
-              actions={[
-                <Button
-                  key="unblock"
-                  size="small"
-                  loading={unblockMutation.isPending}
-                  onClick={() => handleUnblock(user._id)}
-                >
-                  Bỏ chặn
-                </Button>,
-              ]}
+      {!isLoading &&
+        blockedUsers.map((user) => (
+          <Flex key={user._id} align="center" gap={10} style={{ padding: '8px 4px' }}>
+            <Avatar
+              src={user.avatar || undefined}
+              style={{ backgroundColor: colorForId(user._id) }}
             >
-              <List.Item.Meta
-                avatar={
-                  <Avatar
-                    src={user.avatar || undefined}
-                    style={{ backgroundColor: colorForId(user._id) }}
-                  >
-                    {initialOf(user.username)}
-                  </Avatar>
-                }
-                title={user.username}
-                description={<Text type="secondary">{user.email}</Text>}
-              />
-            </List.Item>
-          )}
-        />
-      )}
+              {initialOf(user.username)}
+            </Avatar>
+            <Flex vertical flex={1} style={{ minWidth: 0 }}>
+              <Text strong ellipsis>
+                {user.username}
+              </Text>
+              <Text type="secondary" ellipsis style={{ fontSize: 12 }}>
+                {user.email}
+              </Text>
+            </Flex>
+            <Button
+              size="small"
+              loading={unblockMutation.isPending}
+              onClick={() => handleUnblock(user._id)}
+            >
+              Bỏ chặn
+            </Button>
+          </Flex>
+        ))}
     </Modal>
   );
 };
