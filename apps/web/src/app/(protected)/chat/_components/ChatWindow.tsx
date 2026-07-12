@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Avatar, Button, Dropdown, Empty, Input, Skeleton, Typography } from 'antd';
+import { Alert, Avatar, Button, Dropdown, Empty, Image, Input, Skeleton, Typography } from 'antd';
 import {
   SendOutlined,
   SmileOutlined,
@@ -11,12 +11,17 @@ import {
   TeamOutlined,
   SettingOutlined,
   ArrowLeftOutlined,
+  PaperClipOutlined,
+  FileOutlined,
+  CloseCircleFilled,
 } from '@ant-design/icons';
 import { useConversationDetail } from '@/hook/useConversations';
-import type { Message } from '@/types/message';
+import type { Message, MessageAttachment, MessageType } from '@/types/message';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useSocketContext } from '@/providers/SocketProvider';
 import { useChatStore } from '@/store/useChatStore';
+import { attachmentService } from '@/services/attachment.service';
+import { msg } from '@/lib/notify';
 import GroupSettingsModal from './GroupSettingsModal';
 
 const TYPING_STOP_DELAY_MS = 2500;
@@ -26,12 +31,70 @@ const { Text, Title } = Typography;
 const formatMessageTime = (isoDate: string) =>
   new Date(isoDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const ACCEPTED_FILE_TYPES =
+  'image/png,image/jpeg,image/webp,application/pdf,.docx,.xlsx,application/zip';
+const MAX_FILES_PER_MESSAGE = 10;
+
+const AttachmentPreview = ({ attachment }: { attachment: MessageAttachment }) => {
+  const isImage = attachment.mimeType.startsWith('image/');
+
+  if (isImage) {
+    return (
+      <Image
+        src={attachment.thumbnailUrl || attachment.url}
+        preview={{ src: attachment.url }}
+        alt={attachment.fileName}
+        style={{ maxWidth: 240, maxHeight: 240, borderRadius: 12, display: 'block' }}
+        styles={{ root: { borderRadius: 12, overflow: 'hidden' } }}
+      />
+    );
+  }
+
+  return (
+    <a
+      href={attachment.url}
+      download={attachment.fileName}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 12px',
+        borderRadius: 10,
+        background: 'rgba(0,0,0,0.04)',
+        color: 'inherit',
+        minWidth: 0,
+      }}
+    >
+      <FileOutlined style={{ fontSize: 18, flexShrink: 0 }} />
+      <div style={{ minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 13,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {attachment.fileName}
+        </div>
+        <div style={{ fontSize: 11, opacity: 0.7 }}>{formatFileSize(attachment.size)}</div>
+      </div>
+    </a>
+  );
+};
+
 interface ChatWindowProps {
   conversationId: string | null;
   currentUserId?: string;
   messages: Message[];
   messagesLoading: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, attachmentIds?: string[], type?: MessageType) => void;
   sendLoading: boolean;
   isBlocked: boolean;
   onToggleBlock: () => void;
@@ -55,6 +118,9 @@ const ChatWindow = ({
 }: ChatWindowProps) => {
   const [draft, setDraft] = useState('');
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -102,6 +168,37 @@ const ChatWindow = ({
     }, TYPING_STOP_DELAY_MS);
   };
 
+  const handlePickFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (files.length === 0) return;
+
+    if (files.length > MAX_FILES_PER_MESSAGE) {
+      antdMessage.error(`Chỉ được chọn tối đa ${MAX_FILES_PER_MESSAGE} tệp mỗi lần!`);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const res = await attachmentService.uploadFiles(files);
+      setPendingAttachments((prev) => [...prev, ...res.data.attachments]);
+    } catch (error) {
+      const axiosErr = error as { response?: { data?: { message?: string } } };
+      msg.error(axiosErr.response?.data?.message || 'Tải tệp lên thất bại!');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemovePendingAttachment = (id: string) => {
+    attachmentService.deleteAttachment(id).catch(() => {});
+    setPendingAttachments((prev) => prev.filter((a) => a._id !== id));
+  };
+
   if (!conversationId) {
     return (
       <div
@@ -134,9 +231,20 @@ const ChatWindow = ({
   }
 
   const handleSend = () => {
-    if (!draft.trim() || isBlocked) return;
-    onSend(draft);
+    if ((!draft.trim() && pendingAttachments.length === 0) || isBlocked || uploading) return;
+    const messageType: MessageType | undefined =
+      pendingAttachments.length > 0
+        ? pendingAttachments.every((a) => a.mimeType.startsWith('image/'))
+          ? 'image'
+          : 'file'
+        : undefined;
+    onSend(
+      draft,
+      pendingAttachments.length > 0 ? pendingAttachments.map((a) => a._id) : undefined,
+      messageType,
+    );
     setDraft('');
+    setPendingAttachments([]);
     if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
     if (conversationId) stopTyping(conversationId);
   };
@@ -274,7 +382,13 @@ const ChatWindow = ({
                   <div
                     style={{
                       minWidth: 0,
-                      padding: '10px 16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      padding:
+                        !msg.isDeleted && msg.attachmentIds?.length && !msg.content
+                          ? 4
+                          : '10px 16px',
                       borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                       background: mine ? '#5b5bf6' : '#fff',
                       color: mine ? '#fff' : 'rgba(0,0,0,0.88)',
@@ -283,7 +397,16 @@ const ChatWindow = ({
                       fontStyle: msg.isDeleted ? 'italic' : 'normal',
                     }}
                   >
-                    {msg.isDeleted ? 'Tin nhắn đã được thu hồi' : msg.content}
+                    {msg.isDeleted ? (
+                      'Tin nhắn đã được thu hồi'
+                    ) : (
+                      <>
+                        {msg.attachmentIds?.map((attachment) => (
+                          <AttachmentPreview key={attachment._id} attachment={attachment} />
+                        ))}
+                        {msg.content}
+                      </>
+                    )}
                   </div>
                 </div>
                 <Text
@@ -310,7 +433,69 @@ const ChatWindow = ({
       </div>
 
       <div className="border-t border-[#eef0f7] bg-white p-3 md:p-4 md:px-6">
+        {pendingAttachments.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+            {pendingAttachments.map((attachment) => (
+              <div
+                key={attachment._id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 10px',
+                  borderRadius: 10,
+                  background: '#f4f5fb',
+                  width: 'fit-content',
+                  maxWidth: '100%',
+                }}
+              >
+                {attachment.mimeType.startsWith('image/') ? (
+                  <img
+                    src={attachment.thumbnailUrl || attachment.url}
+                    alt={attachment.fileName}
+                    style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }}
+                  />
+                ) : (
+                  <FileOutlined style={{ fontSize: 18 }} />
+                )}
+                <Text
+                  style={{
+                    fontSize: 12,
+                    maxWidth: 200,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {attachment.fileName}
+                </Text>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CloseCircleFilled />}
+                  onClick={() => handleRemovePendingAttachment(attachment._id)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ACCEPTED_FILE_TYPES}
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+          <Button
+            type="text"
+            icon={<PaperClipOutlined style={{ fontSize: 18 }} />}
+            shape="circle"
+            loading={uploading}
+            disabled={isBlocked || pendingAttachments.length >= MAX_FILES_PER_MESSAGE}
+            onClick={handlePickFile}
+          />
           <Input
             placeholder={isBlocked ? 'Bạn đã chặn người dùng này' : 'Nhập tin nhắn...'}
             size="large"
@@ -328,7 +513,7 @@ const ChatWindow = ({
             size="large"
             shape="circle"
             loading={sendLoading}
-            disabled={!draft.trim() || isBlocked}
+            disabled={(!draft.trim() && pendingAttachments.length === 0) || isBlocked || uploading}
             onClick={handleSend}
           />
         </div>

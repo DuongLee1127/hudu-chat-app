@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import User from '@/models/user';
 import RefreshToken from '@/models/refresh_token';
 import { generateToken, verifyToken } from '@/providers/JwtProvider';
+import { sanitizeText } from '@/helpers/sanitize';
 
 const authService = {
   login: async (email: string, password: string) => {
@@ -14,6 +15,14 @@ const authService = {
 
       const validatePassword = await bcrypt.compare(password, user.password);
       if (!validatePassword) throw Error('Mật khẩu không chính xác!');
+
+      if (user.accountStatus === 'locked') {
+        throw new Error(
+          user.lockReason
+            ? `Tài khoản của bạn đã bị khóa: ${user.lockReason}`
+            : 'Tài khoản của bạn đã bị khóa!',
+        );
+      }
 
       const jwtAccessToken = process.env.JWT_ACCESS_TOKEN;
       const jwtRefreshToken = process.env.JWT_REFRESH_TOKEN;
@@ -60,7 +69,7 @@ const authService = {
       const hashedPassword = await bcrypt.hash(password, 12);
 
       const newUser = await User.create({
-        username,
+        username: sanitizeText(username),
         email,
         password: hashedPassword,
       });

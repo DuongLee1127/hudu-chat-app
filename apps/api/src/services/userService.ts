@@ -1,5 +1,6 @@
 import User from '@/models/user';
 import Block from '@/models/block';
+import { sanitizeText } from '@/helpers/sanitize';
 
 const userService = {
   updateProfile: async (
@@ -7,14 +8,19 @@ const userService = {
     data: { username?: string; avatar?: string; bio?: string },
   ) => {
     try {
-      if (data.username) {
-        const existing = await User.findOne({ username: data.username, _id: { $ne: userId } });
+      const update: { username?: string; avatar?: string; bio?: string } = {};
+      if (data.avatar !== undefined) update.avatar = data.avatar;
+      if (data.username !== undefined) update.username = sanitizeText(data.username);
+      if (data.bio !== undefined) update.bio = sanitizeText(data.bio);
+
+      if (update.username) {
+        const existing = await User.findOne({ username: update.username, _id: { $ne: userId } });
         if (existing) {
           throw new Error('Tên tài khoản này đã tồn tại!');
         }
       }
 
-      const updatedUser = await User.findByIdAndUpdate(userId, data, { new: true });
+      const updatedUser = await User.findByIdAndUpdate(userId, update, { new: true });
       if (!updatedUser) throw new Error('Không tìm thấy người dùng!');
 
       return updatedUser;

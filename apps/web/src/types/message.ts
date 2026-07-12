@@ -8,11 +8,13 @@ export interface MessageSender {
 
 export interface MessageAttachment {
   _id: string;
-  messageId: string;
+  uploaderId: string;
+  messageId: string | null;
   fileName: string;
-  fileUrl: string;
-  fileType: string;
-  fileSize: number;
+  url: string;
+  thumbnailUrl?: string;
+  mimeType: string;
+  size: number;
   createdAt: string;
 }
 

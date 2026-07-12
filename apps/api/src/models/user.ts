@@ -7,6 +7,10 @@ export interface IUser extends Document {
   avatar?: string;
   status: 'online' | 'offline' | 'away';
   bio?: string;
+  role: 'user' | 'admin';
+  accountStatus: 'active' | 'locked';
+  lockReason?: string | null;
+  lockedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +55,24 @@ const UserSchema: Schema = new Schema(
       maxlength: 200,
       default: '',
     },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
+    accountStatus: {
+      type: String,
+      enum: ['active', 'locked'],
+      default: 'active',
+    },
+    lockReason: {
+      type: String,
+      default: null,
+    },
+    lockedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -60,6 +82,8 @@ const UserSchema: Schema = new Schema(
 // Index
 UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ username: 1 }, { unique: true });
+// Full-text search over username
+UserSchema.index({ username: 'text' });
 
 const User = mongoose.model<IUser>('User', UserSchema);
 export default User;

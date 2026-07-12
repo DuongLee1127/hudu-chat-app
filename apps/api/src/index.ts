@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 
 import { swaggerSpec } from '@/config/swagger';
@@ -14,6 +15,12 @@ import userRouter from '@/routes/userRouter';
 import conversationRouter from '@/routes/conversationRouter';
 import messageRouter from '@/routes/messageRouter';
 import friendRouter from '@/routes/friendRouter';
+import uploadRouter from '@/routes/uploadRouter';
+import attachmentRouter from '@/routes/attachmentRouter';
+import notificationRouter from '@/routes/notificationRouter';
+import searchRouter from '@/routes/searchRouter';
+import reportRouter from '@/routes/reportRouter';
+import adminRouter from '@/routes/adminRouter';
 
 const PORT = process.env.PORT || 5000;
 dotenv.config();
@@ -28,6 +35,7 @@ app.use(
 );
 app.use(cookieParser());
 app.use(express.json());
+app.use(morgan('dev'));
 
 // swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -38,6 +46,12 @@ app.use('/api/users', userRouter);
 app.use('/api/conversations', conversationRouter);
 app.use('/api/messages', messageRouter);
 app.use('/api/friends', friendRouter);
+app.use('/api/uploads', uploadRouter);
+app.use('/api/attachments', attachmentRouter);
+app.use('/api/notifications', notificationRouter);
+app.use('/api/search', searchRouter);
+app.use('/api/reports', reportRouter);
+app.use('/api/admin', adminRouter);
 
 const server = http.createServer(app);
 initSocket(server);

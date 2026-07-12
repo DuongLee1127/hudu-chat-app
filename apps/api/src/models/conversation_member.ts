@@ -53,6 +53,8 @@ const ConversationMemberSchema: Schema = new Schema(
 
 // Unique index to prevent duplicate members in a conversation
 ConversationMemberSchema.index({ conversationId: 1, userId: 1 }, { unique: true });
+// Optimize lookups of all conversations a user belongs to
+ConversationMemberSchema.index({ userId: 1 });
 
 const ConversationMember = mongoose.model<IConversationMember>(
   'ConversationMember',

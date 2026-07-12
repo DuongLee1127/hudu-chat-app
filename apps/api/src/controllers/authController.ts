@@ -3,6 +3,7 @@ import ms from 'ms';
 
 import authService from '@/services/authService';
 import { sendSuccess, sendError } from '@/helpers';
+import { logger } from '@/helpers/logger';
 
 const authController = {
   login: async (req: Request, res: Response) => {
@@ -27,6 +28,7 @@ const authController = {
 
       return sendSuccess(res, result, 'Login success', 200);
     } catch (error) {
+      logger.error(`Login failed for email=${req.body?.email}`, error);
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
     }
   },

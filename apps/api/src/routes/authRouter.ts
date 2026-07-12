@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import authController from '@/controllers/authController';
 import { authMiddleware } from '@/middlewares/authMiddleware';
+import { loginRateLimiter } from '@/middlewares/rateLimitMiddleware';
 
 const router = Router();
 
@@ -234,7 +235,7 @@ const router = Router();
  *       500:
  *         description: Internal server error
  */
-router.post('/login', authController.login);
+router.post('/login', loginRateLimiter, authController.login);
 router.post('/register', authController.register);
 router.post('/logout', authController.logout);
 router.post('/logout-all', authController.logoutAll);

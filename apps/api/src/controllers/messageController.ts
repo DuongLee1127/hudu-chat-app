@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import messageService from '@/services/messageService';
+import notificationService from '@/services/notificationService';
 import { sendSuccess, sendError } from '@/helpers';
 import { getIO } from '@/socket';
+import { logger } from '@/helpers/logger';
 
 const messageController = {
   listMessages: async (req: Request, res: Response) => {
@@ -41,14 +43,20 @@ const messageController = {
       }
 
       const { type, content, attachmentIds, replyToMessageId } = req.body;
-      const message = await messageService.sendMessage(String(userId), String(id), {
+      const message: any = await messageService.sendMessage(String(userId), String(id), {
         type,
         content,
         attachmentIds: Array.isArray(attachmentIds) ? attachmentIds.map(String) : [],
         replyToMessageId,
       });
+
+      const io = getIO();
+      io.to(`conversation:${id}`).emit('message:created', { message });
+      await notificationService.notifyNewMessage(io, message, String(id), String(userId));
+
       return sendSuccess(res, { message }, 'Send message success', 201);
     } catch (error) {
+      logger.error('messageController.sendMessage failed', error);
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
     }
   },

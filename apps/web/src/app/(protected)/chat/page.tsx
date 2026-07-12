@@ -17,6 +17,7 @@ import { useDebouncedValue } from '@/hook/useDebouncedValue';
 import { useIsMobile } from '@/hook/useMediaQuery';
 import type { User } from '@/types/user';
 import type { ApiResponse } from '@/types/api';
+import type { MessageType } from '@/types/message';
 
 import Sidebar from './_components/Sidebar';
 import ChatWindow from './_components/ChatWindow';
@@ -123,10 +124,10 @@ const ChatPage = () => {
     }
   };
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = (text: string, attachmentIds?: string[], type?: MessageType) => {
     if (!selectedConversationId) return;
     sendMessageMutation.mutate(
-      { content: text },
+      { content: text, attachmentIds, type },
       {
         onError: (err) => {
           const axiosErr = err as AxiosError<ApiResponse<null>>;

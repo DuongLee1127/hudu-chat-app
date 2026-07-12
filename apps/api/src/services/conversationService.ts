@@ -2,6 +2,7 @@ import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
 import User from '@/models/user';
 import { assertMember, assertAdmin } from '@/services/membershipService';
+import { sanitizeText } from '@/helpers/sanitize';
 
 const getMembersWithUser = async (conversationId: string) => {
   return ConversationMember.find({ conversationId }).populate({
@@ -66,7 +67,8 @@ const conversationService = {
     avatarUrl?: string,
   ) => {
     try {
-      if (!name || !name.trim()) {
+      const sanitizedName = sanitizeText(name);
+      if (!sanitizedName || !sanitizedName.trim()) {
         throw new Error('Tên nhóm không được để trống!');
       }
 
@@ -81,7 +83,7 @@ const conversationService = {
 
       const conversation = await Conversation.create({
         type: 'group',
-        name: name.trim(),
+        name: sanitizedName.trim(),
         avatar: avatarUrl || '',
         creatorId,
       });
@@ -204,7 +206,7 @@ const conversationService = {
 
       await assertAdmin(conversationId, userId);
 
-      if (data.name !== undefined) conversation.name = data.name.trim();
+      if (data.name !== undefined) conversation.name = sanitizeText(data.name).trim();
       if (data.avatarUrl !== undefined) conversation.avatar = data.avatarUrl;
       await conversation.save();
 

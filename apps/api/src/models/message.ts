@@ -19,7 +19,6 @@ const MessageSchema: Schema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Conversation',
       required: true,
-      index: true,
     },
     senderId: {
       type: Schema.Types.ObjectId,
@@ -58,6 +57,11 @@ const MessageSchema: Schema = new Schema(
     timestamps: true,
   },
 );
+
+// Optimize listing/pagination queries scoped to a conversation
+MessageSchema.index({ conversationId: 1, createdAt: -1 });
+// Full-text search over message content
+MessageSchema.index({ content: 'text' });
 
 const Message = mongoose.model<IMessage>('Message', MessageSchema);
 export default Message;

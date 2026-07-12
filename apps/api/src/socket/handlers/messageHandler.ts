@@ -1,6 +1,11 @@
 import { Server, Socket } from 'socket.io';
 import messageService from '@/services/messageService';
-import ConversationMember from '@/models/conversation_member';
+import notificationService from '@/services/notificationService';
+import { isRateLimited } from '@/socket/rateLimit';
+import { logger } from '@/helpers/logger';
+
+const SEND_MESSAGE_WINDOW_MS = 60 * 1000;
+const SEND_MESSAGE_MAX = 60;
 
 export const registerMessageHandlers = (io: Server, socket: Socket) => {
   socket.on(
@@ -17,6 +22,14 @@ export const registerMessageHandlers = (io: Server, socket: Socket) => {
       ack?: (res: any) => void,
     ) => {
       const userId = String(socket.data.user.id);
+
+      if (isRateLimited(`message:send:${userId}`, SEND_MESSAGE_WINDOW_MS, SEND_MESSAGE_MAX)) {
+        const errorMessage = 'Bạn đang gửi tin nhắn quá nhanh. Vui lòng thử lại sau!';
+        ack?.({ success: false, error: errorMessage, tempId: payload.tempId });
+        socket.emit('message:error', { tempId: payload.tempId, message: errorMessage });
+        return;
+      }
+
       try {
         const message = await messageService.sendMessage(userId, payload.conversationId, {
           type: payload.type,
@@ -30,24 +43,12 @@ export const registerMessageHandlers = (io: Server, socket: Socket) => {
           tempId: payload.tempId,
         });
 
-        const members = await ConversationMember.find({
-          conversationId: payload.conversationId,
-          userId: { $ne: userId },
-        }).select('userId');
-
-        members.forEach((member) => {
-          io.to(`user:${String(member.userId)}`).emit('notification:new', {
-            notification: {
-              type: 'message',
-              conversationId: payload.conversationId,
-              message,
-            },
-          });
-        });
+        await notificationService.notifyNewMessage(io, message, payload.conversationId, userId);
 
         ack?.({ success: true, data: message, tempId: payload.tempId });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Gửi tin nhắn thất bại!';
+        logger.error('socket message:send failed', error);
         ack?.({ success: false, error: errorMessage, tempId: payload.tempId });
         socket.emit('message:error', { tempId: payload.tempId, message: errorMessage });
       }

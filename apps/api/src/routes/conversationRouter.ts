@@ -2,6 +2,7 @@ import { Router } from 'express';
 import conversationController from '@/controllers/conversationController';
 import messageController from '@/controllers/messageController';
 import { authMiddleware } from '@/middlewares/authMiddleware';
+import { sendMessageRateLimiter } from '@/middlewares/rateLimitMiddleware';
 
 const router = Router();
 
@@ -447,7 +448,12 @@ router.patch('/:id/archive', authMiddleware, conversationController.archiveConve
  */
 
 router.get('/:id/messages', authMiddleware, messageController.listMessages);
-router.post('/:id/messages', authMiddleware, messageController.sendMessage);
+router.post(
+  '/:id/messages',
+  authMiddleware,
+  sendMessageRateLimiter,
+  messageController.sendMessage,
+);
 router.post('/:id/read', authMiddleware, messageController.markAsRead);
 router.get('/:id/unread-count', authMiddleware, messageController.getUnreadCount);
 

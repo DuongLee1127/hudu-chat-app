@@ -3,7 +3,9 @@ import Message from '@/models/message';
 import Attachment from '@/models/attachment';
 import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
+import User from '@/models/user';
 import { assertMember, assertAdmin } from '@/services/membershipService';
+import { sanitizeText } from '@/helpers/sanitize';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000; // 15 phút
 
@@ -60,15 +62,25 @@ const messageService = {
     try {
       await assertMember(conversationId, userId);
 
+      const sender = await User.findById(userId).select('accountStatus');
+      if (sender?.accountStatus === 'locked') {
+        throw new Error('Tài khoản của bạn đã bị khóa, không thể gửi tin nhắn!');
+      }
+
+      const content = sanitizeText(data.content);
       const attachmentIds = Array.from(new Set(data.attachmentIds || []));
-      if (!data.content?.trim() && attachmentIds.length === 0) {
+      if (!content?.trim() && attachmentIds.length === 0) {
         throw new Error('Nội dung tin nhắn không được để trống!');
       }
 
       if (attachmentIds.length > 0) {
-        const count = await Attachment.countDocuments({ _id: { $in: attachmentIds } });
+        const count = await Attachment.countDocuments({
+          _id: { $in: attachmentIds },
+          uploaderId: userId,
+          messageId: null,
+        });
         if (count !== attachmentIds.length) {
-          throw new Error('Một số tệp đính kèm không tồn tại!');
+          throw new Error('Một số tệp đính kèm không hợp lệ hoặc đã được sử dụng!');
         }
       }
 
@@ -86,11 +98,18 @@ const messageService = {
       const message = await Message.create({
         conversationId,
         senderId: userId,
-        content: data.content?.trim() || '',
+        content: content?.trim() || '',
         type: data.type || 'text',
         attachmentIds,
         replyToMessageId: data.replyToMessageId || undefined,
       });
+
+      if (attachmentIds.length > 0) {
+        await Attachment.updateMany(
+          { _id: { $in: attachmentIds } },
+          { messageId: message._id },
+        );
+      }
 
       await Conversation.findByIdAndUpdate(conversationId, {
         lastMessageId: message._id,
@@ -124,11 +143,12 @@ const messageService = {
       if (Date.now() - message.createdAt.getTime() > EDIT_WINDOW_MS) {
         throw new Error('Đã hết thời gian cho phép sửa tin nhắn!');
       }
-      if (!content?.trim()) {
+      const sanitizedContent = sanitizeText(content);
+      if (!sanitizedContent?.trim()) {
         throw new Error('Nội dung tin nhắn không được để trống!');
       }
 
-      message.content = content.trim();
+      message.content = sanitizedContent.trim();
       message.isEdited = true;
       await message.save();
 
