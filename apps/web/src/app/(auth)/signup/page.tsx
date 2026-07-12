@@ -1,6 +1,6 @@
 'use client';
 
-import { Form, Input, Button, Card, Typography, Divider, Checkbox, Flex } from 'antd';
+import { Form, Input, Button, Card, Typography, Divider, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, MessageOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -40,18 +40,10 @@ const SignUpPage = () => {
   };
 
   return (
-    <Flex className="min-h-screen!">
+    <div className="flex min-h-screen flex-col md:flex-row">
       {/* Brand panel */}
       <div
-        className="auth-brand-panel"
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '64px',
-          color: '#fff',
-        }}
+        className="auth-brand-panel hidden flex-1 flex-col justify-center text-white md:flex md:p-16"
       >
         <div style={{ maxWidth: 420, position: 'relative', zIndex: 1 }}>
           <div
@@ -99,29 +91,17 @@ const SignUpPage = () => {
       </div>
 
       {/* Form panel */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '24px',
-          background: '#f4f5fb',
-          position: 'relative',
-        }}
-      >
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#f4f5fb] p-4 md:p-6">
         <div
           className="auth-glow-blob"
           style={{ width: 360, height: 360, top: '8%', right: '8%' }}
         />
         <Card
           variant="outlined"
+          className="relative z-1 w-full max-w-110 md:w-105"
           style={{
-            width: 420,
             borderRadius: 20,
             boxShadow: '0 20px 48px rgba(37, 24, 97, 0.12)',
-            position: 'relative',
-            zIndex: 1,
           }}
         >
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
@@ -238,7 +218,7 @@ const SignUpPage = () => {
           </div>
         </Card>
       </div>
-    </Flex>
+    </div>
   );
 };
 

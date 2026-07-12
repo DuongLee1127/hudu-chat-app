@@ -6,6 +6,7 @@ import type { AxiosError } from 'axios';
 import { useGetListBlockUser, useUnBlockUser } from '@/hook/useUser';
 import type { ApiResponse } from '@/types/api';
 import { colorForId, initialOf } from '@/lib/avatar';
+import { useIsMobile } from '@/hook/useMediaQuery';
 
 const { Text } = Typography;
 
@@ -16,6 +17,7 @@ interface BlockedUsersModalProps {
 
 const BlockedUsersModal = ({ open, onClose }: BlockedUsersModalProps) => {
   const { message } = App.useApp();
+  const isMobile = useIsMobile();
   const { data, isLoading } = useGetListBlockUser({ page: 1, pageSize: 50 });
   const unblockMutation = useUnBlockUser();
 
@@ -32,7 +34,13 @@ const BlockedUsersModal = ({ open, onClose }: BlockedUsersModalProps) => {
   };
 
   return (
-    <Modal title="Người dùng đã chặn" open={open} onCancel={onClose} footer={null} width={440}>
+    <Modal
+      title="Người dùng đã chặn"
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={isMobile ? '92%' : 440}
+    >
       {isLoading && <Skeleton avatar paragraph={{ rows: 1 }} active />}
 
       {!isLoading && blockedUsers.length === 0 && (

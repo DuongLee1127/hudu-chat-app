@@ -13,6 +13,7 @@ import { useListMessages, useSendMessage } from '@/hook/useMessages';
 import { notify } from '@/lib/notify';
 import { useChatStore } from '@/store/useChatStore';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
+import { useIsMobile } from '@/hook/useMediaQuery';
 import type { User } from '@/types/user';
 import type { ApiResponse } from '@/types/api';
 
@@ -26,6 +27,7 @@ const BLOCKED_LIST_PARAMS = { page: 1, pageSize: 50 };
 const ChatPage = () => {
   const router = useRouter();
   const { modal } = App.useApp();
+  const isMobile = useIsMobile();
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
@@ -147,35 +149,44 @@ const ChatPage = () => {
     });
   };
 
+  const showSidebar = !isMobile || !selectedConversationId;
+  const showChatWindow = !isMobile || !!selectedConversationId;
+
   return (
     <Layout style={{ height: '100vh', overflow: 'hidden', flexDirection: 'row' }}>
-      <Sidebar
-        currentUser={currentUser}
-        contacts={contacts}
-        loading={searchLoading}
-        searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-        selectedConversationId={selectedConversationId}
-        onSelectConversation={(id) => setSelectedConversationId(id || null)}
-        onSelectContact={handleSelectContact}
-        contactActionLoadingId={pendingContactId}
-        onOpenProfile={() => setProfileOpen(true)}
-        onOpenBlocked={() => setBlockedOpen(true)}
-        onLogout={handleLogout}
-        logoutLoading={logoutMutation.isPending}
-      />
+      {showSidebar && (
+        <Sidebar
+          currentUser={currentUser}
+          contacts={contacts}
+          loading={searchLoading}
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          selectedConversationId={selectedConversationId}
+          onSelectConversation={(id) => setSelectedConversationId(id || null)}
+          onSelectContact={handleSelectContact}
+          contactActionLoadingId={pendingContactId}
+          onOpenProfile={() => setProfileOpen(true)}
+          onOpenBlocked={() => setBlockedOpen(true)}
+          onLogout={handleLogout}
+          logoutLoading={logoutMutation.isPending}
+        />
+      )}
 
-      <ChatWindow
-        conversationId={selectedConversationId}
-        currentUserId={currentUser?._id}
-        messages={selectedConversationId ? messages : []}
-        messagesLoading={!!selectedConversationId && messagesLoading}
-        onSend={handleSendMessage}
-        sendLoading={sendMessageMutation.isPending}
-        isBlocked={isSelectedBlocked}
-        onToggleBlock={handleToggleBlock}
-        blockActionLoading={blockMutation.isPending || unblockMutation.isPending}
-      />
+      {showChatWindow && (
+        <ChatWindow
+          conversationId={selectedConversationId}
+          currentUserId={currentUser?._id}
+          messages={selectedConversationId ? messages : []}
+          messagesLoading={!!selectedConversationId && messagesLoading}
+          onSend={handleSendMessage}
+          sendLoading={sendMessageMutation.isPending}
+          isBlocked={isSelectedBlocked}
+          onToggleBlock={handleToggleBlock}
+          blockActionLoading={blockMutation.isPending || unblockMutation.isPending}
+          isMobile={isMobile}
+          onBack={() => setSelectedConversationId(null)}
+        />
+      )}
 
       <ProfileDrawer
         open={profileOpen}

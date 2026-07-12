@@ -9,6 +9,7 @@ import { useUpdateProfile, useChangePassword } from '@/hook/useUser';
 import type { User, UpdateProfilePayload, ChangePasswordPayload } from '@/types/user';
 import type { ApiResponse } from '@/types/api';
 import { colorForId, initialOf } from '@/lib/avatar';
+import { useIsMobile } from '@/hook/useMediaQuery';
 
 const { TextArea } = Input;
 
@@ -20,6 +21,7 @@ interface ProfileDrawerProps {
 
 const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
   const { message } = App.useApp();
+  const isMobile = useIsMobile();
   const [profileForm] = Form.useForm<UpdateProfilePayload>();
   const [passwordForm] = Form.useForm<ChangePasswordPayload & { confirmPassword: string }>();
 
@@ -63,7 +65,7 @@ const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
   };
 
   return (
-    <Drawer title="Hồ sơ cá nhân" open={open} onClose={onClose} size={420}>
+    <Drawer title="Hồ sơ cá nhân" open={open} onClose={onClose} width={isMobile ? '100%' : 420}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <Avatar
           size={80}

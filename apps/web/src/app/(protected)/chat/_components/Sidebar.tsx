@@ -83,16 +83,7 @@ const Sidebar = ({
   };
 
   return (
-    <div
-      style={{
-        width: 340,
-        minWidth: 340,
-        display: 'flex',
-        flexDirection: 'column',
-        borderRight: '1px solid #eef0f7',
-        background: '#fff',
-      }}
-    >
+    <div className="flex h-full w-full flex-col border-r border-[#eef0f7] bg-white md:w-85 md:min-w-85">
       <div
         style={{
           padding: '16px 20px',

@@ -8,6 +8,7 @@ import { colorForId, initialOf } from '@/lib/avatar';
 import { useSearchUsers } from '@/hook/useUser';
 import { useCreateGroupConversation } from '@/hook/useConversations';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
+import { useIsMobile } from '@/hook/useMediaQuery';
 import type { ApiResponse } from '@/types/api';
 
 const { Text } = Typography;
@@ -20,6 +21,7 @@ interface CreateGroupModalProps {
 
 const CreateGroupModal = ({ open, onClose, onCreated }: CreateGroupModalProps) => {
   const { message } = App.useApp();
+  const isMobile = useIsMobile();
   const [groupName, setGroupName] = useState('');
   const [memberQuery, setMemberQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -73,6 +75,7 @@ const CreateGroupModal = ({ open, onClose, onCreated }: CreateGroupModalProps) =
       cancelText="Hủy"
       confirmLoading={createGroupMutation.isPending}
       okButtonProps={{ disabled: !groupName.trim() || selectedIds.length === 0 }}
+      width={isMobile ? '92%' : 520}
     >
       <Flex vertical gap={16}>
         <div>

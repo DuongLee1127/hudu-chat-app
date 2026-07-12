@@ -31,9 +31,9 @@ const SignInPage = () => {
   };
 
   return (
-    <Flex className="min-h-screen!">
+    <div className="flex min-h-screen flex-col md:flex-row">
       {/* Brand panel */}
-      <Flex vertical justify="center" flex={1} className="auth-brand-panel p-16! text-white">
+      <div className="hidden flex-1 flex-col justify-center text-white md:flex md:p-16 auth-brand-panel">
         <div className="relative z-1 max-w-110">
           <Flex
             align="center"
@@ -69,25 +69,15 @@ const SignInPage = () => {
             priority
           />
         </Flex>
-      </Flex>
+      </div>
 
       {/* Form panel */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '24px',
-          background: '#f4f5fb',
-          position: 'relative',
-        }}
-      >
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#f4f5fb] p-4 md:p-6">
         <div className="auth-glow-blob top-[8%] right-[8%] h-90 w-90" />
 
         <Card
           variant="outlined"
-          className="relative! z-1 w-110 rounded-[20px]! shadow-[0_20px_48px_rgba(37,24,97,0.12)]!"
+          className="relative! z-1 w-full max-w-110 rounded-[20px]! shadow-[0_20px_48px_rgba(37,24,97,0.12)]!"
         >
           <div className="text-center mb-7">
             <div
@@ -158,7 +148,7 @@ const SignInPage = () => {
           </div>
         </Card>
       </div>
-    </Flex>
+    </div>
   );
 };
 

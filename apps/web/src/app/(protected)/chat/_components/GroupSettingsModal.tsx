@@ -7,6 +7,7 @@ import type { AxiosError } from 'axios';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useSearchUsers } from '@/hook/useUser';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
+import { useIsMobile } from '@/hook/useMediaQuery';
 import {
   useUpdateConversation,
   useAddMembers,
@@ -35,6 +36,7 @@ const GroupSettingsModal = ({
   currentUserId,
 }: GroupSettingsModalProps) => {
   const { message, modal } = App.useApp();
+  const isMobile = useIsMobile();
 
   const [name, setName] = useState(conversationName || '');
   const [memberQuery, setMemberQuery] = useState('');
@@ -104,7 +106,13 @@ const GroupSettingsModal = ({
   };
 
   return (
-    <Modal title="Quản lý nhóm" open={open} onCancel={onClose} footer={null} width={480}>
+    <Modal
+      title="Quản lý nhóm"
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={isMobile ? '92%' : 480}
+    >
       <div style={{ marginBottom: 20 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           Tên nhóm

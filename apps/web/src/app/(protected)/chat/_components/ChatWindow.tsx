@@ -10,6 +10,7 @@ import {
   MessageOutlined,
   TeamOutlined,
   SettingOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { useConversationDetail } from '@/hook/useConversations';
 import type { Message } from '@/types/message';
@@ -35,6 +36,8 @@ interface ChatWindowProps {
   isBlocked: boolean;
   onToggleBlock: () => void;
   blockActionLoading: boolean;
+  isMobile?: boolean;
+  onBack?: () => void;
 }
 
 const ChatWindow = ({
@@ -47,6 +50,8 @@ const ChatWindow = ({
   isBlocked,
   onToggleBlock,
   blockActionLoading,
+  isMobile,
+  onBack,
 }: ChatWindowProps) => {
   const [draft, setDraft] = useState('');
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
@@ -138,28 +143,26 @@ const ChatWindow = ({
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f4f5fb' }}>
-      <div
-        style={{
-          height: 72,
-          padding: '0 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid #eef0f7',
-          background: '#fff',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="flex h-16 items-center justify-between border-b border-[#eef0f7] bg-white px-3 md:h-18 md:px-6">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+          {isMobile && (
+            <Button
+              type="text"
+              icon={<ArrowLeftOutlined />}
+              onClick={onBack}
+              style={{ flexShrink: 0 }}
+            />
+          )}
           <Avatar
             size={40}
             src={avatarUrl || undefined}
             icon={isGroup ? <TeamOutlined /> : undefined}
-            style={{ backgroundColor: colorForId(conversation._id) }}
+            style={{ backgroundColor: colorForId(conversation._id), flexShrink: 0 }}
           >
             {!isGroup && displayName ? initialOf(displayName) : undefined}
           </Avatar>
-          <div>
-            <Title level={5} style={{ margin: 0 }}>
+          <div style={{ minWidth: 0 }}>
+            <Title level={5} style={{ margin: 0 }} ellipsis>
               {displayName || 'Người dùng'}
             </Title>
             {isOtherTyping ? (
@@ -227,7 +230,7 @@ const ChatWindow = ({
         />
       )}
 
-      <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {messagesLoading && <Skeleton paragraph={{ rows: 4 }} active />}
         {!messagesLoading && messages.length === 0 && (
           <Empty
@@ -250,8 +253,8 @@ const ChatWindow = ({
                 }}
               >
                 <div
+                  className="max-w-[85%] sm:max-w-[70%]"
                   style={{
-                    maxWidth: '70%',
                     padding: '10px 16px',
                     borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                     background: mine ? '#5b5bf6' : '#fff',
@@ -282,7 +285,7 @@ const ChatWindow = ({
         <div ref={bottomRef} />
       </div>
 
-      <div style={{ padding: '16px 24px', background: '#fff', borderTop: '1px solid #eef0f7' }}>
+      <div className="border-t border-[#eef0f7] bg-white p-3 md:p-4 md:px-6">
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Input
             placeholder={isBlocked ? 'Bạn đã chặn người dùng này' : 'Nhập tin nhắn...'}
