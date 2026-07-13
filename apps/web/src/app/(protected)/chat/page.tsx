@@ -85,7 +85,7 @@ const ChatPage = () => {
     modal.confirm({
       title: 'Đăng xuất',
       icon: <ExclamationCircleFilled />,
-      content: 'Bạn có chắc chắn muốn đăng xuất khỏi Hudu Chat?',
+      content: 'Bạn có chắc chắn muốn đăng xuất khỏi Halo Chat?',
       okText: 'Đăng xuất',
       okButtonProps: { danger: true },
       cancelText: 'Hủy',

@@ -1,12 +1,13 @@
 'use client';
 
-import { Avatar, Button, Empty, Flex, Modal, Skeleton, Typography, App } from 'antd';
+import { Avatar, Button, Empty, Flex, Modal, Skeleton, Typography } from 'antd';
 import type { AxiosError } from 'axios';
 
 import { useGetListBlockUser, useUnBlockUser } from '@/hook/useUser';
-import type { ApiResponse } from '@/types/api';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useIsMobile } from '@/hook/useMediaQuery';
+import { notify } from '@/lib/notify';
+import type { ApiResponse } from '@/types/api';
 
 const { Text } = Typography;
 
@@ -16,7 +17,6 @@ interface BlockedUsersModalProps {
 }
 
 const BlockedUsersModal = ({ open, onClose }: BlockedUsersModalProps) => {
-  const { message } = App.useApp();
   const isMobile = useIsMobile();
   const { data, isLoading } = useGetListBlockUser({ page: 1, pageSize: 50 });
   const unblockMutation = useUnBlockUser();
@@ -25,10 +25,10 @@ const BlockedUsersModal = ({ open, onClose }: BlockedUsersModalProps) => {
 
   const handleUnblock = (userId: string) => {
     unblockMutation.mutate(userId, {
-      onSuccess: () => message.success('Đã bỏ chặn người dùng!'),
+      onSuccess: () => notify.success('Đã bỏ chặn người dùng!'),
       onError: (err) => {
         const axiosErr = err as AxiosError<ApiResponse<null>>;
-        message.error(axiosErr.response?.data?.message || 'Bỏ chặn thất bại!');
+        notify.error(axiosErr.response?.data?.message || 'Bỏ chặn thất bại!');
       },
     });
   };

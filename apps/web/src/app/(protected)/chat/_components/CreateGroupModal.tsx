@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { App, Avatar, Checkbox, Empty, Flex, Input, Modal, Skeleton, Typography } from 'antd';
+import { Avatar, Checkbox, Empty, Flex, Input, Modal, Skeleton, Typography } from 'antd';
 import { TeamOutlined, SearchOutlined } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
+
+import { notify } from '@/lib/notify';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useFriends } from '@/hook/useFriend';
 import { useCreateGroupConversation } from '@/hook/useConversations';
@@ -20,7 +22,6 @@ interface CreateGroupModalProps {
 }
 
 const CreateGroupModal = ({ open, onClose, onCreated }: CreateGroupModalProps) => {
-  const { message } = App.useApp();
   const isMobile = useIsMobile();
   const [groupName, setGroupName] = useState('');
   const [memberQuery, setMemberQuery] = useState('');
@@ -52,14 +53,14 @@ const CreateGroupModal = ({ open, onClose, onCreated }: CreateGroupModalProps) =
       { name: groupName.trim(), memberIds: selectedIds },
       {
         onSuccess: (res) => {
-          message.success('Đã tạo nhóm chat!');
+          notify.success('Đã tạo nhóm chat!');
           onCreated?.(res.data.conversation._id);
           resetState();
           onClose();
         },
         onError: (err) => {
           const axiosErr = err as AxiosError<ApiResponse<null>>;
-          message.error(axiosErr.response?.data?.message || 'Tạo nhóm chat thất bại!');
+          notify.error(axiosErr.response?.data?.message || 'Tạo nhóm chat thất bại!');
         },
       },
     );

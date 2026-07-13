@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Hudu Chat',
-  description: 'Kết nối và trò chuyện cùng bạn bè trên Hudu Chat',
+  title: 'Halo Chat',
+  description: 'Kết nối và trò chuyện cùng bạn bè trên Halo Chat',
 };
 
 import { AntdRegistry } from '@ant-design/nextjs-registry';

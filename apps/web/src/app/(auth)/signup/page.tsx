@@ -21,7 +21,8 @@ const SignUpPage = () => {
   const router = useRouter();
   const registerMutation = useRegister();
 
-  const onFinish = (values: SignUpFormValues) => {
+  // Xử lý đăng ký
+  const handleRegister = (values: SignUpFormValues) => {
     registerMutation.mutate(
       { username: values.username, email: values.email, password: values.password },
       {
@@ -42,9 +43,7 @@ const SignUpPage = () => {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* Brand panel */}
-      <div
-        className="auth-brand-panel hidden flex-1 flex-col justify-center text-white md:flex md:p-16"
-      >
+      <div className="auth-brand-panel hidden flex-1 flex-col justify-center text-white md:flex md:p-16">
         <div style={{ maxWidth: 420, position: 'relative', zIndex: 1 }}>
           <div
             style={{
@@ -57,13 +56,13 @@ const SignUpPage = () => {
               marginBottom: 32,
             }}
           >
-            <MessageOutlined style={{ fontSize: 18 }} />
+            <Image src="/hudo.svg" alt="Halo Chat" width={32} height={32} />
             <Typography.Text strong style={{ color: '#fff' }}>
-              Hudu Chat
+              Halo Chat
             </Typography.Text>
           </div>
           <Typography.Title level={1} style={{ color: '#fff', fontSize: 40, lineHeight: 1.25 }}>
-            Tham gia cộng đồng Hudu Chat ngay hôm nay.
+            Tham gia cộng đồng Halo Chat ngay hôm nay.
           </Typography.Title>
           <Typography.Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16 }}>
             Tạo tài khoản miễn phí để bắt đầu trò chuyện với bạn bè và đồng nghiệp của bạn.
@@ -81,7 +80,7 @@ const SignUpPage = () => {
         >
           <Image
             src="/image/chat-illustration.svg"
-            alt="Minh họa trò chuyện Hudu Chat"
+            alt="Minh họa trò chuyện Halo Chat"
             width={520}
             height={500}
             style={{ width: '100%', maxWidth: 420, height: 'auto' }}
@@ -118,7 +117,7 @@ const SignUpPage = () => {
                 boxShadow: '0 10px 20px rgba(108, 82, 240, 0.35)',
               }}
             >
-              <MessageOutlined style={{ fontSize: 24, color: '#fff' }} />
+              <Image src="/image/hudo.png" alt="Halo Chat" width={32} height={32} />
             </div>
             <Typography.Title level={3} style={{ margin: 0 }}>
               Tạo tài khoản
@@ -126,7 +125,13 @@ const SignUpPage = () => {
             <Typography.Text type="secondary">Chỉ mất chưa đầy một phút</Typography.Text>
           </div>
 
-          <Form name="signup" onFinish={onFinish} size="large" layout="vertical" autoComplete="off">
+          <Form
+            name="signup"
+            onFinish={handleRegister}
+            size="large"
+            layout="vertical"
+            autoComplete="off"
+          >
             <Form.Item
               name="username"
               label="Tên hiển thị"
@@ -193,7 +198,7 @@ const SignUpPage = () => {
                 },
               ]}
             >
-              <Checkbox>Tôi đồng ý với điều khoản sử dụng của Hudu Chat</Checkbox>
+              <Checkbox>Tôi đồng ý với điều khoản sử dụng của Halo Chat</Checkbox>
             </Form.Item>
 
             <Form.Item style={{ marginBottom: 12 }}>

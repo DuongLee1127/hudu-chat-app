@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Avatar, Button, Drawer, Form, Input, Tabs, App } from 'antd';
+import { Avatar, Button, Drawer, Form, Input, Tabs } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
 
+import { notify } from '@/lib/notify';
 import { useUpdateProfile, useChangePassword } from '@/hook/useUser';
-import type { User, UpdateProfilePayload, ChangePasswordPayload } from '@/types/user';
-import type { ApiResponse } from '@/types/api';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useIsMobile } from '@/hook/useMediaQuery';
+import type { User, UpdateProfilePayload, ChangePasswordPayload } from '@/types/user';
+import type { ApiResponse } from '@/types/api';
 
 const { TextArea } = Input;
 
@@ -20,7 +21,6 @@ interface ProfileDrawerProps {
 }
 
 const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
-  const { message } = App.useApp();
   const isMobile = useIsMobile();
   const [profileForm] = Form.useForm<UpdateProfilePayload>();
   const [passwordForm] = Form.useForm<ChangePasswordPayload & { confirmPassword: string }>();
@@ -40,10 +40,10 @@ const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
 
   const handleUpdateProfile = (values: UpdateProfilePayload) => {
     updateProfileMutation.mutate(values, {
-      onSuccess: () => message.success('Cập nhật hồ sơ thành công!'),
+      onSuccess: () => notify.success('Cập nhật hồ sơ thành công!'),
       onError: (err) => {
         const axiosErr = err as AxiosError<ApiResponse<null>>;
-        message.error(axiosErr.response?.data?.message || 'Cập nhật hồ sơ thất bại!');
+        notify.error(axiosErr.response?.data?.message || 'Cập nhật hồ sơ thất bại!');
       },
     });
   };
@@ -53,12 +53,12 @@ const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
       { oldPassword: values.oldPassword, newPassword: values.newPassword },
       {
         onSuccess: () => {
-          message.success('Đổi mật khẩu thành công!');
+          notify.success('Đổi mật khẩu thành công!');
           passwordForm.resetFields();
         },
         onError: (err) => {
           const axiosErr = err as AxiosError<ApiResponse<null>>;
-          message.error(axiosErr.response?.data?.message || 'Đổi mật khẩu thất bại!');
+          notify.error(axiosErr.response?.data?.message || 'Đổi mật khẩu thất bại!');
         },
       },
     );

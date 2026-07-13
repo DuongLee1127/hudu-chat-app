@@ -62,7 +62,13 @@ export function useSendMessage(conversationId: string) {
       if (!connected) {
         try {
           const res = await messageService.sendMessage(conversationId, { ...payload, tempId });
-          return res;
+          return {
+            ...res,
+            data: {
+              ...res.data,
+              tempId,
+            },
+          } as unknown as ApiResponse<{ message: Message; tempId?: string }>;
         } catch (error) {
           markMessageFailed(queryClient, conversationId, tempId);
           throw error;
@@ -77,14 +83,44 @@ export function useSendMessage(conversationId: string) {
       return {
         success: true,
         message: 'ok',
-        data: { message: ack.data },
+        data: { message: ack.data, tempId },
         error: null,
       } as ApiResponse<{
         message: Message;
+        tempId?: string;
       }>;
     },
-    onSuccess: () => {
+    onSuccess: (res, variables) => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+
+      const serverMessage = res.data.message;
+      const tempId = res.data.tempId || variables.tempId;
+
+      queryClient.setQueriesData<ApiResponse<ListMessagesResult>>(
+        { queryKey: ['messages', conversationId], exact: false },
+        (old) => {
+          if (!old) return old;
+          const withoutTemp = tempId
+            ? old.data.items.filter((m) => m.tempId !== tempId)
+            : old.data.items;
+          if (withoutTemp.some((m) => m._id === serverMessage._id)) {
+            return {
+              ...old,
+              data: {
+                ...old.data,
+                items: withoutTemp.map((m) => (m._id === serverMessage._id ? serverMessage : m)),
+              },
+            };
+          }
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              items: [...withoutTemp, serverMessage],
+            },
+          };
+        },
+      );
     },
   });
 }

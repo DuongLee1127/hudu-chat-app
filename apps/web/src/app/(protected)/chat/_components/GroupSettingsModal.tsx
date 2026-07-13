@@ -4,15 +4,13 @@ import { useEffect, useState } from 'react';
 import { App, Avatar, Button, Empty, Flex, Input, Modal, Skeleton, Tag, Typography } from 'antd';
 import { SearchOutlined, UserDeleteOutlined, UserAddOutlined } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
+
+import { notify } from '@/lib/notify';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useFriends } from '@/hook/useFriend';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
 import { useIsMobile } from '@/hook/useMediaQuery';
-import {
-  useUpdateConversation,
-  useAddMembers,
-  useRemoveMember,
-} from '@/hook/useConversations';
+import { useUpdateConversation, useAddMembers, useRemoveMember } from '@/hook/useConversations';
 import type { ConversationMember } from '@/types/conversation';
 import type { ApiResponse } from '@/types/api';
 
@@ -35,7 +33,7 @@ const GroupSettingsModal = ({
   members,
   currentUserId,
 }: GroupSettingsModalProps) => {
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
   const isMobile = useIsMobile();
 
   const [name, setName] = useState(conversationName || '');
@@ -64,7 +62,7 @@ const GroupSettingsModal = ({
 
   const handleApiError = (err: unknown, fallback: string) => {
     const axiosErr = err as AxiosError<ApiResponse<null>>;
-    message.error(axiosErr.response?.data?.message || fallback);
+    notify.error(axiosErr.response?.data?.message || fallback);
   };
 
   const handleSaveName = () => {
@@ -73,7 +71,7 @@ const GroupSettingsModal = ({
     updateMutation.mutate(
       { name: trimmed },
       {
-        onSuccess: () => message.success('Đã cập nhật tên nhóm!'),
+        onSuccess: () => notify.success('Đã cập nhật tên nhóm!'),
         onError: (err) => handleApiError(err, 'Cập nhật tên nhóm thất bại!'),
       },
     );
@@ -82,7 +80,7 @@ const GroupSettingsModal = ({
   const handleAddMember = (userId: string) => {
     addMembersMutation.mutate([userId], {
       onSuccess: () => {
-        message.success('Đã thêm thành viên!');
+        notify.success('Đã thêm thành viên!');
         setMemberQuery('');
       },
       onError: (err) => handleApiError(err, 'Thêm thành viên thất bại!'),
@@ -98,7 +96,7 @@ const GroupSettingsModal = ({
       cancelText: 'Hủy',
       onOk: () => {
         removeMemberMutation.mutate(member.userId._id, {
-          onSuccess: () => message.success('Đã xóa thành viên!'),
+          onSuccess: () => notify.success('Đã xóa thành viên!'),
           onError: (err) => handleApiError(err, 'Xóa thành viên thất bại!'),
         });
       },
@@ -143,12 +141,7 @@ const GroupSettingsModal = ({
         </Text>
         <div style={{ marginTop: 8, maxHeight: 220, overflowY: 'auto' }}>
           {members.map((member) => (
-            <Flex
-              key={member._id}
-              align="center"
-              gap={10}
-              style={{ padding: '6px 4px' }}
-            >
+            <Flex key={member._id} align="center" gap={10} style={{ padding: '6px 4px' }}>
               <Avatar
                 size={36}
                 src={member.userId.avatar || undefined}
@@ -198,7 +191,10 @@ const GroupSettingsModal = ({
           <div style={{ maxHeight: 200, overflowY: 'auto' }}>
             {searchLoading && <Skeleton avatar paragraph={{ rows: 1 }} active />}
             {!searchLoading && debouncedQuery && searchResults.length === 0 && (
-              <Empty description="Không tìm thấy bạn bè nào phù hợp" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <Empty
+                description="Không tìm thấy bạn bè nào phù hợp"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
             )}
             {!searchLoading &&
               searchResults.map((user) => (
@@ -223,8 +219,7 @@ const GroupSettingsModal = ({
                     type="text"
                     icon={<UserAddOutlined />}
                     loading={
-                      addMembersMutation.isPending &&
-                      addMembersMutation.variables?.[0] === user._id
+                      addMembersMutation.isPending && addMembersMutation.variables?.[0] === user._id
                     }
                     onClick={() => handleAddMember(user._id)}
                   />

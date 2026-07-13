@@ -16,7 +16,8 @@ const SignInPage = () => {
   const router = useRouter();
   const loginMutation = useLogin();
 
-  const onFinish = (values: LoginPayload) => {
+  // Xử lý đăng nhập
+  const handleLogin = (values: LoginPayload) => {
     loginMutation.mutate(values, {
       onSuccess: () => {
         notify.success('Đăng nhập thành công!');
@@ -40,9 +41,9 @@ const SignInPage = () => {
             gap={10}
             className="mb-7! w-fit! rounded-full! bg-white/15! px-4! py-2!"
           >
-            <MessageOutlined className="text-[18px]!" />
+            <Image src="/hudo.svg" alt="Halo Chat" width={32} height={32} />
             <Typography.Text strong className="text-white!">
-              Hudu Chat
+              HaloChat
             </Typography.Text>
           </Flex>
           <Typography.Title
@@ -54,7 +55,7 @@ const SignInPage = () => {
             kết nối không giới hạn.
           </Typography.Title>
           <Typography.Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16 }}>
-            Nhắn tin, chia sẻ và giữ liên lạc với bạn bè, đồng nghiệp mọi lúc mọi nơi cùng Hudu
+            Nhắn tin, chia sẻ và giữ liên lạc với bạn bè, đồng nghiệp mọi lúc mọi nơi cùng Halo
             Chat.
           </Typography.Text>
         </div>
@@ -62,7 +63,7 @@ const SignInPage = () => {
         <Flex justify="center" className="mt-8! relative z-1">
           <Image
             src="/image/chat-illustration.svg"
-            alt="Minh họa trò chuyện Hudu Chat"
+            alt="Minh họa trò chuyện Halo Chat"
             width={520}
             height={500}
             style={{ width: '100%', maxWidth: 420, height: 'auto' }}
@@ -93,7 +94,7 @@ const SignInPage = () => {
                 boxShadow: '0 10px 20px rgba(108, 82, 240, 0.35)',
               }}
             >
-              <MessageOutlined style={{ fontSize: 24, color: '#fff' }} />
+              <Image src="/image/hudo.png" alt="Halo Chat" width={32} height={32} />
             </div>
             <Typography.Title level={3} style={{ margin: 0 }}>
               Chào mừng trở lại
@@ -103,7 +104,13 @@ const SignInPage = () => {
             </Typography.Text>
           </div>
 
-          <Form name="signin" onFinish={onFinish} size="large" layout="vertical" autoComplete="off">
+          <Form
+            name="signin"
+            onFinish={handleLogin}
+            size="large"
+            layout="vertical"
+            autoComplete="off"
+          >
             <Form.Item
               name="email"
               label="Email"

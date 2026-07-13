@@ -1,6 +1,6 @@
 'use client';
 
-import { Avatar, Button, Empty, Flex, Modal, Skeleton, Typography, App } from 'antd';
+import { Avatar, Button, Empty, Flex, Modal, Skeleton, Typography } from 'antd';
 import type { AxiosError } from 'axios';
 
 import {
@@ -9,10 +9,11 @@ import {
   useAcceptFriendRequest,
   useCancelFriendRequest,
 } from '@/hook/useFriend';
-import type { ApiResponse } from '@/types/api';
-import type { FriendRequestItem } from '@/types/user';
+import { notify } from '@/lib/notify';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useIsMobile } from '@/hook/useMediaQuery';
+import type { FriendRequestItem } from '@/types/user';
+import type { ApiResponse } from '@/types/api';
 
 const { Text, Title } = Typography;
 
@@ -22,7 +23,6 @@ interface FriendRequestsModalProps {
 }
 
 const FriendRequestsModal = ({ open, onClose }: FriendRequestsModalProps) => {
-  const { message } = App.useApp();
   const isMobile = useIsMobile();
 
   const { data: incomingData, isLoading: incomingLoading } = useIncomingFriendRequests();
@@ -36,26 +36,26 @@ const FriendRequestsModal = ({ open, onClose }: FriendRequestsModalProps) => {
 
   const handleError = (err: unknown, fallback: string) => {
     const axiosErr = err as AxiosError<ApiResponse<null>>;
-    message.error(axiosErr.response?.data?.message || fallback);
+    notify.error(axiosErr.response?.data?.message || fallback);
   };
 
   const handleAccept = (userId: string) => {
     acceptMutation.mutate(userId, {
-      onSuccess: () => message.success('Đã chấp nhận lời mời kết bạn!'),
+      onSuccess: () => notify.success('Đã chấp nhận lời mời kết bạn!'),
       onError: (err) => handleError(err, 'Chấp nhận lời mời thất bại!'),
     });
   };
 
   const handleReject = (userId: string) => {
     cancelMutation.mutate(userId, {
-      onSuccess: () => message.success('Đã từ chối lời mời kết bạn!'),
+      onSuccess: () => notify.success('Đã từ chối lời mời kết bạn!'),
       onError: (err) => handleError(err, 'Từ chối lời mời thất bại!'),
     });
   };
 
   const handleCancelOutgoing = (userId: string) => {
     cancelMutation.mutate(userId, {
-      onSuccess: () => message.success('Đã hủy lời mời kết bạn!'),
+      onSuccess: () => notify.success('Đã hủy lời mời kết bạn!'),
       onError: (err) => handleError(err, 'Hủy lời mời thất bại!'),
     });
   };

@@ -1,6 +1,6 @@
 'use client';
 
-import { App, Avatar, Badge, Dropdown, Empty, Flex, Skeleton, Typography } from 'antd';
+import { App, Avatar, Dropdown, Empty, Flex, Skeleton, Typography } from 'antd';
 import { TeamOutlined, MutedOutlined, InboxOutlined, MoreOutlined } from '@ant-design/icons';
 import { ExclamationCircleFilled } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
@@ -11,6 +11,7 @@ import {
   useArchiveConversation,
   useLeaveConversation,
 } from '@/hook/useConversations';
+import { notify } from '@/lib/notify';
 import type { ConversationListItem } from '@/types/conversation';
 import type { ApiResponse } from '@/types/api';
 
@@ -40,7 +41,7 @@ interface ConversationsListProps {
 }
 
 const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsListProps) => {
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
   const { data, isLoading } = useListConversations(LIST_PARAMS);
   const muteMutation = useMuteConversation();
   const archiveMutation = useArchiveConversation();
@@ -50,7 +51,7 @@ const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsLi
 
   const handleApiError = (err: unknown, fallback: string) => {
     const axiosErr = err as AxiosError<ApiResponse<null>>;
-    message.error(axiosErr.response?.data?.message || fallback);
+    notify.error(axiosErr.response?.data?.message || fallback);
   };
 
   const handleToggleMute = (item: ConversationListItem) => {
@@ -58,8 +59,7 @@ const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsLi
     muteMutation.mutate(
       { id: item._id, mutedUntil: isMuted ? null : MUTE_FOREVER },
       {
-        onSuccess: () =>
-          message.success(isMuted ? 'Đã bỏ tắt thông báo!' : 'Đã tắt thông báo!'),
+        onSuccess: () => notify.success(isMuted ? 'Đã bỏ tắt thông báo!' : 'Đã tắt thông báo!'),
         onError: (err) => handleApiError(err, 'Cập nhật thông báo thất bại!'),
       },
     );
@@ -70,7 +70,7 @@ const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsLi
     archiveMutation.mutate(
       { id: item._id, isArchived: !isArchived },
       {
-        onSuccess: () => message.success(isArchived ? 'Đã bỏ lưu trữ!' : 'Đã lưu trữ hội thoại!'),
+        onSuccess: () => notify.success(isArchived ? 'Đã bỏ lưu trữ!' : 'Đã lưu trữ hội thoại!'),
         onError: (err) => handleApiError(err, 'Cập nhật lưu trữ thất bại!'),
       },
     );
@@ -87,7 +87,7 @@ const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsLi
       onOk: () => {
         leaveMutation.mutate(item._id, {
           onSuccess: () => {
-            message.success('Đã rời khỏi hội thoại!');
+            notify.success('Đã rời khỏi hội thoại!');
             if (selectedConversationId === item._id) onSelect?.('');
           },
           onError: (err) => handleApiError(err, 'Rời khỏi hội thoại thất bại!'),
@@ -179,10 +179,7 @@ const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsLi
                   }}
                   trigger={['click']}
                 >
-                  <MoreOutlined
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ color: '#9a9ab0' }}
-                  />
+                  <MoreOutlined onClick={(e) => e.stopPropagation()} style={{ color: '#9a9ab0' }} />
                 </Dropdown>
               </Flex>
             </Flex>

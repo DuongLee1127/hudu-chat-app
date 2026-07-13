@@ -29,7 +29,8 @@ axiosClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as CustomAxiosRequestConfig | undefined;
     const isAuthRoute =
-      originalRequest?.url?.includes('/auth/refresh') || originalRequest?.url?.includes('/auth/login');
+      originalRequest?.url?.includes('/auth/refresh') ||
+      originalRequest?.url?.includes('/auth/login');
 
     if (
       error.response?.status === 401 &&

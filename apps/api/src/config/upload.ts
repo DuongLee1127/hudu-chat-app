@@ -1,7 +1,7 @@
 import multer, { FileFilterCallback } from 'multer';
 import { Request } from 'express';
 
-export const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+export const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/jpg', 'image/gif'];
 
 export const FILE_MIME_TYPES = [
   'application/pdf',
@@ -9,6 +9,9 @@ export const FILE_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/zip',
   'application/x-zip-compressed',
+  'application/msword',
+  'application/vnd.ms-excel',
+  'application/octet-stream',
 ];
 
 export const ALLOWED_MIME_TYPES = [...IMAGE_MIME_TYPES, ...FILE_MIME_TYPES];

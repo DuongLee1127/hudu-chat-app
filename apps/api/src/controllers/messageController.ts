@@ -42,7 +42,7 @@ const messageController = {
         return sendError(res, 'Conversation ID is required', 400);
       }
 
-      const { type, content, attachmentIds, replyToMessageId } = req.body;
+      const { type, content, attachmentIds, replyToMessageId, tempId } = req.body;
       const message: any = await messageService.sendMessage(String(userId), String(id), {
         type,
         content,
@@ -51,10 +51,10 @@ const messageController = {
       });
 
       const io = getIO();
-      io.to(`conversation:${id}`).emit('message:created', { message });
+      io.to(`conversation:${id}`).emit('message:created', { message, tempId });
       await notificationService.notifyNewMessage(io, message, String(id), String(userId));
 
-      return sendSuccess(res, { message }, 'Send message success', 201);
+      return sendSuccess(res, { message, tempId }, 'Send message success', 201);
     } catch (error) {
       logger.error('messageController.sendMessage failed', error);
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
@@ -97,7 +97,10 @@ const messageController = {
       const result = await messageService.deleteMessage(String(userId), String(id));
       getIO()
         .to(`conversation:${result.conversationId}`)
-        .emit('message:deleted', { messageId: result.messageId, conversationId: result.conversationId });
+        .emit('message:deleted', {
+          messageId: result.messageId,
+          conversationId: result.conversationId,
+        });
       return sendSuccess(res, result, 'Delete message success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);

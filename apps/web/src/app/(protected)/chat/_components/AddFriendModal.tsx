@@ -16,6 +16,7 @@ import {
 } from '@/hook/useFriend';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
 import { useIsMobile } from '@/hook/useMediaQuery';
+import { notify } from '@/lib/notify';
 import type { ApiResponse } from '@/types/api';
 
 const { Text } = Typography;
@@ -26,7 +27,6 @@ interface AddFriendModalProps {
 }
 
 const AddFriendModal = ({ open, onClose }: AddFriendModalProps) => {
-  const { message } = App.useApp();
   const isMobile = useIsMobile();
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, 350);
@@ -61,26 +61,26 @@ const AddFriendModal = ({ open, onClose }: AddFriendModalProps) => {
 
   const handleError = (err: unknown, fallback: string) => {
     const axiosErr = err as AxiosError<ApiResponse<null>>;
-    message.error(axiosErr.response?.data?.message || fallback);
+    notify.error(axiosErr.response?.data?.message || fallback);
   };
 
   const handleSend = (userId: string) => {
     sendMutation.mutate(userId, {
-      onSuccess: () => message.success('Đã gửi lời mời kết bạn!'),
+      onSuccess: () => notify.success('Đã gửi lời mời kết bạn!'),
       onError: (err) => handleError(err, 'Gửi lời mời kết bạn thất bại!'),
     });
   };
 
   const handleCancel = (userId: string) => {
     cancelMutation.mutate(userId, {
-      onSuccess: () => message.success('Đã hủy lời mời kết bạn!'),
+      onSuccess: () => notify.success('Đã hủy lời mời kết bạn!'),
       onError: (err) => handleError(err, 'Hủy lời mời thất bại!'),
     });
   };
 
   const handleAccept = (userId: string) => {
     acceptMutation.mutate(userId, {
-      onSuccess: () => message.success('Đã chấp nhận lời mời kết bạn!'),
+      onSuccess: () => notify.success('Đã chấp nhận lời mời kết bạn!'),
       onError: (err) => handleError(err, 'Chấp nhận lời mời thất bại!'),
     });
   };

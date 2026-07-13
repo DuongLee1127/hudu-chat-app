@@ -1,8 +1,8 @@
+import 'dotenv/config';
 import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 
@@ -23,7 +23,7 @@ import reportRouter from '@/routes/reportRouter';
 import adminRouter from '@/routes/adminRouter';
 
 const PORT = process.env.PORT || 5000;
-dotenv.config();
+
 const app = express();
 connect();
 
