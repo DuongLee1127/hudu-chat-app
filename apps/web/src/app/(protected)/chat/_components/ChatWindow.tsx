@@ -178,7 +178,7 @@ const ChatWindow = ({
     if (files.length === 0) return;
 
     if (files.length > MAX_FILES_PER_MESSAGE) {
-      antdMessage.error(`Chỉ được chọn tối đa ${MAX_FILES_PER_MESSAGE} tệp mỗi lần!`);
+      msg.error(`Chỉ được chọn tối đa ${MAX_FILES_PER_MESSAGE} tệp mỗi lần!`);
       return;
     }
 
