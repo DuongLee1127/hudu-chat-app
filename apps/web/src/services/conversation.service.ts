@@ -59,4 +59,42 @@ export const conversationService = {
       { isArchived },
     );
   },
+  createInvite: async (id: string) => {
+    return axiosClient.post<
+      never,
+      ApiResponse<{ inviteToken: string; inviteEnabled: boolean }>
+    >(`/conversations/${id}/invite`);
+  },
+  joinByInvite: async (token: string) => {
+    return axiosClient.post<never, ApiResponse<ConversationDetailResult>>('/conversations/join', {
+      token,
+    });
+  },
+  pinMessage: async (id: string, messageId: string) => {
+    return axiosClient.post<never, ApiResponse<ConversationDetailResult>>(
+      `/conversations/${id}/pins/${messageId}`,
+    );
+  },
+  unpinMessage: async (id: string, messageId: string) => {
+    return axiosClient.delete<never, ApiResponse<ConversationDetailResult>>(
+      `/conversations/${id}/pins/${messageId}`,
+    );
+  },
+  getOrCreateSavedMessages: async () => {
+    return axiosClient.post<never, ApiResponse<ConversationDetailResult>>('/conversations/saved');
+  },
+  openBotConversation: async () => {
+    return axiosClient.post<never, ApiResponse<ConversationDetailResult>>('/conversations/bot');
+  },
+  createPoll: async (id: string, payload: { question: string; options: string[] }) => {
+    return axiosClient.post<never, ApiResponse<{ message: import('@/types/message').Message }>>(
+      `/conversations/${id}/polls`,
+      payload,
+    );
+  },
+  summarize: async (id: string) => {
+    return axiosClient.post<never, ApiResponse<{ summary: string }>>(
+      `/conversations/${id}/summarize`,
+    );
+  },
 };

@@ -3,6 +3,18 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --chat-surface: #f4f5fb;
+  --chat-panel: #ffffff;
+  --chat-accent: #5b5bf6;
+}
+
+html.soft-dark {
+  --background: #12131a;
+  --foreground: #f2f3f7;
+  --chat-surface: #1a1b24;
+  --chat-panel: #222433;
+  --chat-accent: #8b8bff;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -12,15 +24,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 * {
@@ -48,22 +55,20 @@ body {
   background-color: #5b5bf6;
 }
 
-@media (prefers-color-scheme: dark) {
-  * {
-    scrollbar-color: #3a3a5c transparent;
-  }
+html.soft-dark * {
+  scrollbar-color: #3a3a5c transparent;
+}
 
-  *::-webkit-scrollbar-thumb {
-    background-color: #3a3a5c;
-  }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: #8c5bf6;
-  }
+html.soft-dark *::-webkit-scrollbar-thumb {
+  background-color: #3a3a5c;
 }
 
 .chat-list-item:hover {
   background: #f4f5fb !important;
+}
+
+html.soft-dark .chat-list-item:hover {
+  background: #2a2c3d !important;
 }
 
 .auth-brand-panel {
@@ -73,41 +78,4 @@ body {
     radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.12), transparent 45%),
     linear-gradient(135deg, #5b5bf6 0%, #8c5bf6 55%, #b357e0 100%);
   overflow: hidden;
-}
-
-.auth-brand-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1.5px, transparent 1.5px);
-  background-size: 26px 26px;
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.auth-glow-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  background: radial-gradient(
-    circle,
-    rgba(91, 91, 246, 0.35),
-    rgba(140, 91, 246, 0.12) 60%,
-    transparent 75%
-  );
-  pointer-events: none;
-}
-
-.auth-cta-button {
-  background: linear-gradient(135deg, #6f6bff 0%, #8c5bf6 55%, #b357e0 100%) !important;
-  border: none !important;
-  box-shadow: 0 12px 24px rgba(108, 82, 240, 0.35) !important;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease !important;
-}
-
-.auth-cta-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 16px 30px rgba(108, 82, 240, 0.42) !important;
 }

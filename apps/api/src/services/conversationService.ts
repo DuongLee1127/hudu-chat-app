@@ -1,5 +1,7 @@
 import Conversation from '@/models/conversation';
+import crypto from 'crypto';
 import ConversationMember from '@/models/conversation_member';
+import Message from '@/models/message';
 import User from '@/models/user';
 import { assertMember, assertAdmin } from '@/services/membershipService';
 import { sanitizeText } from '@/helpers/sanitize';
@@ -114,13 +116,17 @@ const conversationService = {
   ) => {
     try {
       const memberships = await ConversationMember.find({ userId }).select(
-        'conversationId isArchived mutedUntil',
+        'conversationId isArchived mutedUntil lastReadMessageId',
       );
       const conversationIds = memberships.map((m) => m.conversationId);
       const settingByConversationId = new Map(
         memberships.map((m) => [
           String(m.conversationId),
-          { isArchived: m.isArchived, mutedUntil: m.mutedUntil },
+          {
+            isArchived: m.isArchived,
+            mutedUntil: m.mutedUntil,
+            lastReadMessageId: m.lastReadMessageId,
+          },
         ]),
       );
 
@@ -154,13 +160,44 @@ const conversationService = {
         otherMembers.map((m) => [String(m.conversationId), m.userId]),
       );
 
-      const enrichedItems = items.map((conversation) => ({
+      const lastMessageIds = items.flatMap((conversation) =>
+        conversation.lastMessageId ? [conversation.lastMessageId] : [],
+      );
+      const lastMessages = lastMessageIds.length
+        ? await Message.find({ _id: { $in: lastMessageIds } })
+            .populate({ path: 'senderId', select: 'username' })
+            .select('content type isDeleted senderId')
+        : [];
+      const lastMessageById = new Map(lastMessages.map((message) => [String(message._id), message]));
+
+      const unreadCounts = await Promise.all(
+        items.map((conversation) => {
+          const memberSetting = settingByConversationId.get(String(conversation._id));
+          const filter: any = {
+            conversationId: conversation._id,
+            senderId: { $ne: userId },
+            isDeleted: { $ne: true },
+          };
+
+          if (memberSetting?.lastReadMessageId) {
+            filter._id = { $gt: memberSetting.lastReadMessageId };
+          }
+
+          return Message.countDocuments(filter);
+        }),
+      );
+
+      const enrichedItems = items.map((conversation, index) => ({
         ...conversation.toObject(),
         memberSetting: settingByConversationId.get(String(conversation._id)) || null,
         otherMember:
           conversation.type === 'private'
             ? otherMemberByConversationId.get(String(conversation._id)) || null
             : null,
+        lastMessage: conversation.lastMessageId
+          ? lastMessageById.get(String(conversation.lastMessageId)) || null
+          : null,
+        unreadCount: unreadCounts[index],
       }));
 
       const totalPages = Math.ceil(total / pageSize);
@@ -184,7 +221,12 @@ const conversationService = {
       }
 
       const members = await getMembersWithUser(conversationId);
-      return { conversation, members };
+      const pinnedMessages = conversation.pinnedMessageIds?.length
+        ? await Message.find({ _id: { $in: conversation.pinnedMessageIds }, isDeleted: false })
+            .populate({ path: 'senderId', select: '_id username avatar' })
+            .populate({ path: 'attachmentIds' })
+        : [];
+      return { conversation, members, pinnedMessages };
     } catch (error) {
       throw error;
     }
@@ -308,6 +350,94 @@ const conversationService = {
     } catch (error) {
       throw error;
     }
+  },
+
+  createInvite: async (userId: string, conversationId: string) => {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) throw new Error('Không tìm thấy hội thoại!');
+    if (conversation.type !== 'group') {
+      throw new Error('Chỉ nhóm chat mới có thể tạo liên kết mời!');
+    }
+    await assertAdmin(conversationId, userId);
+
+    conversation.inviteToken = crypto.randomBytes(16).toString('hex');
+    conversation.inviteEnabled = true;
+    await conversation.save();
+    return conversation;
+  },
+
+  joinByInvite: async (userId: string, token: string) => {
+    const conversation = await Conversation.findOne({
+      inviteToken: token,
+      inviteEnabled: true,
+      type: 'group',
+    });
+    if (!conversation) throw new Error('Liên kết mời không hợp lệ hoặc đã hết hiệu lực!');
+
+    await ConversationMember.updateOne(
+      { conversationId: conversation._id, userId },
+      { $setOnInsert: { role: 'member', lastReadAt: new Date(), isArchived: false } },
+      { upsert: true },
+    );
+    return conversationService.getConversationDetail(userId, String(conversation._id));
+  },
+
+  pinMessage: async (userId: string, conversationId: string, messageId: string) => {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) throw new Error('Không tìm thấy hội thoại!');
+    if (conversation.type === 'group') {
+      await assertAdmin(conversationId, userId);
+    } else {
+      await assertMember(conversationId, userId);
+    }
+
+    const message = await Message.findOne({ _id: messageId, conversationId, isDeleted: false });
+    if (!message) throw new Error('Tin nhắn không tồn tại trong hội thoại này!');
+    if (conversation.pinnedMessageIds.some((id) => String(id) === messageId)) {
+      return conversationService.getConversationDetail(userId, conversationId);
+    }
+    if (conversation.pinnedMessageIds.length >= 3) {
+      throw new Error('Chỉ có thể ghim tối đa 3 tin nhắn!');
+    }
+
+    conversation.pinnedMessageIds.push(message._id);
+    await conversation.save();
+    return conversationService.getConversationDetail(userId, conversationId);
+  },
+
+  unpinMessage: async (userId: string, conversationId: string, messageId: string) => {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) throw new Error('Không tìm thấy hội thoại!');
+    if (conversation.type === 'group') {
+      await assertAdmin(conversationId, userId);
+    } else {
+      await assertMember(conversationId, userId);
+    }
+
+    conversation.pinnedMessageIds = conversation.pinnedMessageIds.filter((id) => String(id) !== messageId);
+    await conversation.save();
+    return conversationService.getConversationDetail(userId, conversationId);
+  },
+
+  getOrCreateSavedMessages: async (userId: string) => {
+    const memberships = await ConversationMember.find({ userId }).select('conversationId');
+    const ids = memberships.map((m) => m.conversationId);
+    let conversation = await Conversation.findOne({ _id: { $in: ids }, type: 'self' });
+
+    if (!conversation) {
+      conversation = await Conversation.create({
+        type: 'self',
+        name: 'Tin nhắn đã lưu',
+        creatorId: userId,
+      });
+      await ConversationMember.create({
+        conversationId: conversation._id,
+        userId,
+        role: 'admin',
+      });
+    }
+
+    return conversationService.getConversationDetail(userId, String(conversation._id));
   },
 };
 

@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import messageService from '@/services/messageService';
 import notificationService from '@/services/notificationService';
+import { emitMessageCreated } from '@/socket/emitMessage';
 import { isRateLimited } from '@/socket/rateLimit';
 import { logger } from '@/helpers/logger';
 
@@ -38,12 +39,24 @@ export const registerMessageHandlers = (io: Server, socket: Socket) => {
           replyToMessageId: payload.replyToMessageId,
         });
 
-        io.to(`conversation:${payload.conversationId}`).emit('message:created', {
+        await emitMessageCreated(io, payload.conversationId, {
           message,
           tempId: payload.tempId,
         });
 
         await notificationService.notifyNewMessage(io, message, payload.conversationId, userId);
+        await notificationService.notifyMentions(
+          io,
+          message,
+          payload.conversationId,
+          userId,
+          (message.mentionedUserIds || []).map(String),
+        );
+
+        // Fire-and-forget bot reply for HuduBot DMs
+        import('@/services/botService')
+          .then(({ default: botService }) => botService.maybeReplyAsBot(payload.conversationId, message))
+          .catch(() => {});
 
         ack?.({ success: true, data: message, tempId: payload.tempId });
       } catch (error) {
@@ -54,4 +67,20 @@ export const registerMessageHandlers = (io: Server, socket: Socket) => {
       }
     },
   );
+
+  socket.on('message:delivered', async ({ messageId }: { messageId?: string }) => {
+    if (!messageId) return;
+
+    try {
+      const result = await messageService.markAsDelivered(String(socket.data.user.id), messageId);
+      io.to(`conversation:${result.conversationId}`).emit('message:delivered', {
+        ...result,
+        userId: String(socket.data.user.id),
+      });
+    } catch (error) {
+      logger.warn('socket message:delivered failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
 };

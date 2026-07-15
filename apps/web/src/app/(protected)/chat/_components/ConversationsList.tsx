@@ -1,6 +1,6 @@
 'use client';
 
-import { App, Avatar, Dropdown, Empty, Flex, Skeleton, Typography } from 'antd';
+import { App, Avatar, Badge, Dropdown, Empty, Flex, Skeleton, Typography } from 'antd';
 import { TeamOutlined, MutedOutlined, InboxOutlined, MoreOutlined } from '@ant-design/icons';
 import { ExclamationCircleFilled } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
@@ -30,10 +30,31 @@ const formatConversationTime = (isoString: string) => {
 };
 
 const getDisplayName = (item: ConversationListItem) =>
-  item.type === 'group' ? item.name || 'Nhóm chat' : item.otherMember?.username || 'Người dùng';
+  item.type === 'group' || item.type === 'self'
+    ? item.name || (item.type === 'self' ? 'Tin nhắn đã lưu' : 'Nhóm chat')
+    : item.otherMember?.username || 'Người dùng';
 
 const getAvatarUrl = (item: ConversationListItem) =>
   item.type === 'group' ? item.avatar : item.otherMember?.avatar;
+
+const getLastMessagePreview = (item: ConversationListItem) => {
+  const last = item.lastMessage;
+  if (!last) return item.type === 'group' ? 'Nhóm chat' : 'Trò chuyện riêng tư';
+  if (last.isDeleted) return 'Tin nhắn đã được thu hồi';
+  if (last.content?.trim()) return last.content.trim();
+  switch (last.type) {
+    case 'image':
+      return 'Đã gửi một hình ảnh';
+    case 'video':
+      return 'Đã gửi một video';
+    case 'audio':
+      return 'Đã gửi một tệp âm thanh';
+    case 'file':
+      return 'Đã gửi một tệp đính kèm';
+    default:
+      return 'Đã gửi một tin nhắn';
+  }
+};
 
 interface ConversationsListProps {
   selectedConversationId?: string | null;
@@ -123,6 +144,7 @@ const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsLi
         const isArchived = !!conv.memberSetting?.isArchived;
         const displayName = getDisplayName(conv);
         const avatarUrl = getAvatarUrl(conv);
+        const unread = conv.unreadCount ?? 0;
 
         return (
           <div
@@ -139,24 +161,26 @@ const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsLi
             }}
           >
             <Flex gap={12} align="center">
-              <Avatar
-                size={44}
-                src={avatarUrl || undefined}
-                icon={conv.type === 'group' ? <TeamOutlined /> : undefined}
-                style={{ backgroundColor: colorForId(conv._id) }}
-              >
-                {conv.type === 'private' ? initialOf(displayName) : undefined}
-              </Avatar>
+              <Badge count={unread} size="small" offset={[-4, 4]}>
+                <Avatar
+                  size={44}
+                  src={avatarUrl || undefined}
+                  icon={conv.type === 'group' ? <TeamOutlined /> : undefined}
+                  style={{ backgroundColor: colorForId(conv._id) }}
+                >
+                  {conv.type === 'private' ? initialOf(displayName) : undefined}
+                </Avatar>
+              </Badge>
               <Flex vertical flex={1} style={{ minWidth: 0 }}>
                 <Flex align="center" gap={6}>
-                  <Text strong ellipsis style={{ maxWidth: 150 }}>
+                  <Text strong={unread > 0} ellipsis style={{ maxWidth: 150 }}>
                     {displayName}
                   </Text>
                   {isMuted && <MutedOutlined style={{ color: '#9a9ab0', fontSize: 12 }} />}
                   {isArchived && <InboxOutlined style={{ color: '#9a9ab0', fontSize: 12 }} />}
                 </Flex>
                 <Text type="secondary" ellipsis style={{ fontSize: 12 }}>
-                  {conv.type === 'group' ? 'Nhóm chat' : 'Trò chuyện riêng tư'}
+                  {getLastMessagePreview(conv)}
                 </Text>
               </Flex>
               <Flex vertical align="flex-end" gap={4}>

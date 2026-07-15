@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import conversationService from '@/services/conversationService';
 import { sendSuccess, sendError } from '@/helpers';
+import { getIO } from '@/socket';
 
 const conversationController = {
   createDirectConversation: async (req: Request, res: Response) => {
@@ -226,6 +227,104 @@ const conversationController = {
         Boolean(isArchived),
       );
       return sendSuccess(res, { memberSetting: result }, 'Update archive setting success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  createInvite: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      if (!id) return sendError(res, 'Conversation ID is required', 400);
+
+      const conversation = await conversationService.createInvite(String(userId), String(id));
+      return sendSuccess(
+        res,
+        { inviteToken: conversation.inviteToken, inviteEnabled: conversation.inviteEnabled },
+        'Create invite link success',
+        200,
+      );
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  joinByInvite: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { token } = req.body;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      if (!token || typeof token !== 'string') return sendError(res, 'Invite token is required', 400);
+
+      const result = await conversationService.joinByInvite(String(userId), token);
+      return sendSuccess(res, result, 'Join conversation success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  pinMessage: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { id, messageId } = req.params;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      if (!id || !messageId) return sendError(res, 'Conversation ID and message ID are required', 400);
+      const result = await conversationService.pinMessage(String(userId), String(id), String(messageId));
+      getIO().to(`conversation:${id}`).emit('conversation:pins', result);
+      return sendSuccess(res, result, 'Pin message success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  unpinMessage: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { id, messageId } = req.params;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      if (!id || !messageId) return sendError(res, 'Conversation ID and message ID are required', 400);
+      const result = await conversationService.unpinMessage(String(userId), String(id), String(messageId));
+      getIO().to(`conversation:${id}`).emit('conversation:pins', result);
+      return sendSuccess(res, result, 'Unpin message success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  getOrCreateSavedMessages: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      const result = await conversationService.getOrCreateSavedMessages(String(userId));
+      return sendSuccess(res, result, 'Get saved messages success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  summarize: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      if (!id) return sendError(res, 'Conversation ID is required', 400);
+      const botService = (await import('@/services/botService')).default;
+      const result = await botService.summarizeConversation(String(userId), String(id));
+      return sendSuccess(res, result, 'Summarize success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  openBotConversation: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      const botService = (await import('@/services/botService')).default;
+      const result = await botService.getOrCreateBotConversation(String(userId));
+      return sendSuccess(res, result, 'Open bot conversation success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
     }

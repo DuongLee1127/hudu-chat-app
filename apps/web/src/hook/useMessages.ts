@@ -42,12 +42,22 @@ export function useSendMessage(conversationId: string) {
         content: payload.content || '',
         type: payload.type || 'text',
         attachmentIds: [],
-        replyToMessageId: null,
+        replyToMessageId: payload.replyToMessageId
+          ? {
+              _id: payload.replyToMessageId,
+              content: '',
+              senderId: '',
+              type: 'text',
+              isDeleted: false,
+            }
+          : null,
+        reactions: [],
         isEdited: false,
         isDeleted: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         tempId,
+        pendingAttachmentIds: payload.attachmentIds,
         status: 'sending',
       };
 
@@ -55,7 +65,17 @@ export function useSendMessage(conversationId: string) {
         { queryKey: ['messages', conversationId], exact: false },
         (old) =>
           old
-            ? { ...old, data: { ...old.data, items: [...old.data.items, optimisticMessage] } }
+            ? {
+                ...old,
+                data: {
+                  ...old.data,
+                  items: old.data.items.some((message) => message.tempId === tempId)
+                    ? old.data.items.map((message) =>
+                        message.tempId === tempId ? optimisticMessage : message,
+                      )
+                    : [...old.data.items, optimisticMessage],
+                },
+              }
             : old,
       );
 
@@ -125,6 +145,14 @@ export function useSendMessage(conversationId: string) {
   });
 }
 
+export const retryMessagePayload = (message: Message): SendMessagePayload => ({
+  content: message.content,
+  attachmentIds: message.pendingAttachmentIds || message.attachmentIds.map((attachment) => attachment._id),
+  type: message.type,
+  replyToMessageId: message.replyToMessageId?._id,
+  tempId: message.tempId || message._id,
+});
+
 function markMessageFailed(
   queryClient: ReturnType<typeof useQueryClient>,
   conversationId: string,
@@ -168,6 +196,27 @@ export function useDeleteMessage(conversationId: string) {
   });
 }
 
+export function useToggleReaction(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, emoji }: { id: string; emoji: string }) => messageService.toggleReaction(id, emoji),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+    },
+  });
+}
+
+export function useForwardMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, targetConversationIds }: { id: string; targetConversationIds: string[] }) =>
+      messageService.forwardMessage(id, targetConversationIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
 export function useMarkAsRead(conversationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -185,5 +234,16 @@ export function useUnreadCount(conversationId: string) {
     queryKey: ['unread-count', conversationId],
     queryFn: () => messageService.getUnreadCount(conversationId),
     enabled: !!conversationId,
+  });
+}
+
+export function useVotePoll(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, optionIndex }: { id: string; optionIndex: number }) =>
+      messageService.votePoll(id, optionIndex),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+    },
   });
 }

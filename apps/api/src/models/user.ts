@@ -11,6 +11,10 @@ export interface IUser extends Document {
   accountStatus: 'active' | 'locked';
   lockReason?: string | null;
   lockedAt?: Date | null;
+  pushSubscriptions: Array<{
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,15 +77,22 @@ const UserSchema: Schema = new Schema(
       type: Date,
       default: null,
     },
+    pushSubscriptions: [
+      {
+        endpoint: { type: String, required: true },
+        keys: {
+          p256dh: { type: String, required: true },
+          auth: { type: String, required: true },
+        },
+      },
+    ],
   },
   {
     timestamps: true,
   },
 );
 
-// Index
-UserSchema.index({ email: 1 }, { unique: true });
-UserSchema.index({ username: 1 }, { unique: true });
+// Unique indexes on email/username come from `unique: true` in the field definitions.
 // Full-text search over username
 UserSchema.index({ username: 'text' });
 

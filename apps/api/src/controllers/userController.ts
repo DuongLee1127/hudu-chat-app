@@ -113,6 +113,52 @@ const userController = {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
     }
   },
+
+  savePushSubscription: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      const { endpoint, keys } = req.body || {};
+      if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        return sendError(res, 'Invalid push subscription', 400);
+      }
+      const pushService = (await import('@/services/pushService')).default;
+      const result = await pushService.saveSubscription(String(userId), { endpoint, keys });
+      return sendSuccess(res, result, 'Save push subscription success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
+    }
+  },
+
+  removePushSubscription: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      const endpoint = String(req.body?.endpoint || '');
+      if (!endpoint) return sendError(res, 'endpoint is required', 400);
+      const pushService = (await import('@/services/pushService')).default;
+      const result = await pushService.removeSubscription(String(userId), endpoint);
+      return sendSuccess(res, result, 'Remove push subscription success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
+    }
+  },
+
+  createRemind: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return sendError(res, 'Unauthorized', 401);
+      const content = String(req.body?.content || '').trim();
+      const dueAt = new Date(req.body?.dueAt);
+      if (!content) return sendError(res, 'content is required', 400);
+      if (Number.isNaN(dueAt.getTime())) return sendError(res, 'dueAt is invalid', 400);
+      const Remind = (await import('@/models/remind')).default;
+      const remind = await Remind.create({ userId, content, dueAt });
+      return sendSuccess(res, { remind }, 'Create remind success', 201);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
+    }
+  },
 };
 
 export default userController;

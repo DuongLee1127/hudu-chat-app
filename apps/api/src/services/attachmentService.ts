@@ -7,7 +7,12 @@ import cloudinary, { CLOUDINARY_FOLDER } from '@/config/cloudinary';
 import Attachment, { IAttachment, AttachmentResourceType } from '@/models/attachment';
 import Message from '@/models/message';
 import { getMembership } from '@/services/membershipService';
-import { IMAGE_MIME_TYPES, MAX_IMAGE_SIZE } from '@/config/upload';
+import {
+  AUDIO_MIME_TYPES,
+  getMaxSizeForMime,
+  IMAGE_MIME_TYPES,
+  VIDEO_MIME_TYPES,
+} from '@/config/upload';
 
 const THUMBNAIL_MAX_DIMENSION = 320;
 
@@ -58,12 +63,14 @@ const attachmentService = {
   uploadFile: async (userId: string, file: Express.Multer.File) => {
     try {
       const isImage = IMAGE_MIME_TYPES.includes(file.mimetype);
+      const isMedia = AUDIO_MIME_TYPES.includes(file.mimetype) || VIDEO_MIME_TYPES.includes(file.mimetype);
+      const maxSize = getMaxSizeForMime(file.mimetype);
 
-      if (isImage && file.size > MAX_IMAGE_SIZE) {
-        throw new Error(`Dung lượng ảnh "${file.originalname}" không được vượt quá 5MB!`);
+      if (file.size > maxSize) {
+        throw new Error(`Dung lượng tệp "${file.originalname}" vượt quá giới hạn cho phép!`);
       }
 
-      const resourceType: AttachmentResourceType = isImage ? 'image' : 'raw';
+      const resourceType: AttachmentResourceType = isImage ? 'image' : isMedia ? 'video' : 'raw';
       // Raw (non-image) files keep their extension in the public_id so Cloudinary
       // serves/downloads them with the correct format.
       const publicId = resourceType === 'raw' ? `${uuidv4()}${path.extname(file.originalname)}` : uuidv4();
@@ -119,6 +126,23 @@ const attachmentService = {
     }
   },
 
+  listConversationAttachments: async (userId: string, conversationId: string, type?: string) => {
+    const membership = await getMembership(conversationId, userId);
+    if (!membership) {
+      throw new Error('Bạn không có quyền xem tệp đính kèm của hội thoại này!');
+    }
+
+    const messageIds = await Message.find({ conversationId, isDeleted: false }).distinct('_id');
+    const filter: { messageId: { $in: mongoose.Types.ObjectId[] }; mimeType?: RegExp } = {
+      messageId: { $in: messageIds },
+    };
+    if (type === 'image') {
+      filter.mimeType = /^image\//;
+    }
+
+    return Attachment.find(filter).sort({ createdAt: -1 });
+  },
+
   buildDownloadUrl: (attachment: IAttachment) => {
     // Cloudinary's fl_attachment transformation can't safely contain arbitrary
     // characters, so pass a sanitized name; it auto-appends the real extension.
@@ -128,7 +152,7 @@ const attachmentService = {
       resource_type: attachment.resourceType,
       secure: true,
       sign_url: true,
-      flags: `attachment:${safeName}`,
+      ...(attachment.resourceType === 'raw' ? { flags: `attachment:${safeName}` } : {}),
     });
   },
 

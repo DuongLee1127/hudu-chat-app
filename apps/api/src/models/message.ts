@@ -4,11 +4,20 @@ export interface IMessage extends Document {
   conversationId: mongoose.Types.ObjectId;
   senderId: mongoose.Types.ObjectId;
   content: string;
-  type: 'text' | 'image' | 'file' | 'video' | 'audio' | 'system';
+  type: 'text' | 'image' | 'file' | 'video' | 'audio' | 'system' | 'poll';
   attachmentIds: mongoose.Types.ObjectId[];
   replyToMessageId?: mongoose.Types.ObjectId;
+  mentionedUserIds: mongoose.Types.ObjectId[];
+  linkPreview?: {
+    url: string;
+    title?: string;
+    description?: string;
+    image?: string;
+  };
+  reactions: Array<{ emoji: string; userId: mongoose.Types.ObjectId }>;
   isEdited: boolean;
   isDeleted: boolean;
+  deliveredTo: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,7 +40,7 @@ const MessageSchema: Schema = new Schema(
     },
     type: {
       type: String,
-      enum: ['text', 'image', 'file', 'video', 'audio', 'system'],
+      enum: ['text', 'image', 'file', 'video', 'audio', 'system', 'poll'],
       default: 'text',
     },
     attachmentIds: [
@@ -44,6 +53,24 @@ const MessageSchema: Schema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Message',
     },
+    mentionedUserIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    linkPreview: {
+      url: { type: String },
+      title: { type: String },
+      description: { type: String },
+      image: { type: String },
+    },
+    reactions: [
+      {
+        emoji: { type: String, required: true, trim: true },
+        userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+      },
+    ],
     isEdited: {
       type: Boolean,
       default: false,
@@ -52,6 +79,12 @@ const MessageSchema: Schema = new Schema(
       type: Boolean,
       default: false,
     },
+    deliveredTo: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   {
     timestamps: true,

@@ -6,7 +6,7 @@ import { generateToken, verifyToken } from '@/providers/JwtProvider';
 import { sanitizeText } from '@/helpers/sanitize';
 
 const authService = {
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string, rememberMe = false) => {
     try {
       if (!email || !password) throw Error('Mật khẩu và email không được để trống!');
       const user = await User.findOne({ email }).select('+password');
@@ -37,18 +37,21 @@ const authService = {
         username: user.username,
       };
 
+      // "Ghi nhớ đăng nhập": refresh token sống 30 ngày, mặc định 7 ngày
+      const refreshDays = rememberMe ? 30 : 7;
+
       const accessToken = generateToken(payload, jwtAccessToken, '1h');
-      const refreshToken = generateToken(payload, jwtRefreshToken, '7 days');
+      const refreshToken = generateToken(payload, jwtRefreshToken, `${refreshDays} days`);
 
       // Lưu refresh token vào database hỗ trợ đa thiết bị
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 ngày
+      const expiresAt = new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000);
       await RefreshToken.create({
         userId: user._id,
         token: refreshToken,
         expiresAt,
       });
 
-      return { accessToken, refreshToken, ...payload };
+      return { accessToken, refreshToken, rememberMe, ...payload };
     } catch (error) {
       throw error;
     }

@@ -3,6 +3,10 @@ import { Request } from 'express';
 
 export const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/jpg', 'image/gif'];
 
+export const AUDIO_MIME_TYPES = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/wav'];
+
+export const VIDEO_MIME_TYPES = ['video/mp4', 'video/webm'];
+
 export const FILE_MIME_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -14,9 +18,16 @@ export const FILE_MIME_TYPES = [
   'application/octet-stream',
 ];
 
-export const ALLOWED_MIME_TYPES = [...IMAGE_MIME_TYPES, ...FILE_MIME_TYPES];
+export const ALLOWED_MIME_TYPES = [
+  ...IMAGE_MIME_TYPES,
+  ...AUDIO_MIME_TYPES,
+  ...VIDEO_MIME_TYPES,
+  ...FILE_MIME_TYPES,
+];
 
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+export const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
+export const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 export const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 export const MAX_FILES_PER_UPLOAD = 10;
 
@@ -32,8 +43,14 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCall
 export const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter,
-  limits: { fileSize: MAX_FILE_SIZE },
+  limits: { fileSize: MAX_VIDEO_SIZE },
 });
 
 export const getMaxSizeForMime = (mimeType: string) =>
-  IMAGE_MIME_TYPES.includes(mimeType) ? MAX_IMAGE_SIZE : MAX_FILE_SIZE;
+  IMAGE_MIME_TYPES.includes(mimeType)
+    ? MAX_IMAGE_SIZE
+    : AUDIO_MIME_TYPES.includes(mimeType)
+      ? MAX_AUDIO_SIZE
+      : VIDEO_MIME_TYPES.includes(mimeType)
+        ? MAX_VIDEO_SIZE
+        : MAX_FILE_SIZE;

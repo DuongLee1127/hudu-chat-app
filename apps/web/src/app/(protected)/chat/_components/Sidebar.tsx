@@ -24,14 +24,19 @@ import {
   UsergroupAddOutlined,
   UserAddOutlined,
   TeamOutlined,
+  BellOutlined,
+  MessageOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import type { User } from '@/types/user';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useIncomingFriendRequests } from '@/hook/useFriend';
+import { useNotifications } from '@/hook/useNotifications';
 import ConversationsList from './ConversationsList';
 import CreateGroupModal from './CreateGroupModal';
 import AddFriendModal from './AddFriendModal';
 import FriendRequestsModal from './FriendRequestsModal';
+import NotificationsDrawer from './NotificationsDrawer';
 
 const { Text, Title } = Typography;
 
@@ -47,6 +52,8 @@ interface SidebarProps {
   contactActionLoadingId?: string | null;
   onOpenProfile: () => void;
   onOpenBlocked: () => void;
+  onOpenSaved?: () => void;
+  onOpenBot?: () => void;
   onLogout: () => void;
   logoutLoading: boolean;
 }
@@ -63,6 +70,8 @@ const Sidebar = ({
   contactActionLoadingId,
   onOpenProfile,
   onOpenBlocked,
+  onOpenSaved,
+  onOpenBot,
   onLogout,
   logoutLoading,
 }: SidebarProps) => {
@@ -70,12 +79,17 @@ const Sidebar = ({
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
   const [friendRequestsOpen, setFriendRequestsOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const { data: incomingData } = useIncomingFriendRequests();
   const incomingCount = incomingData?.data.length ?? 0;
+  const { data: notificationsData } = useNotifications();
+  const notificationUnread = notificationsData?.data.meta.unreadCount ?? 0;
 
   const menuItems = [
     { key: 'profile', icon: <SettingOutlined />, label: 'Hồ sơ cá nhân' },
+    { key: 'saved', icon: <MessageOutlined />, label: 'Tin nhắn đã lưu' },
+    { key: 'bot', icon: <RobotOutlined />, label: 'HuduBot' },
     {
       key: 'friendRequests',
       icon: <TeamOutlined />,
@@ -92,6 +106,8 @@ const Sidebar = ({
 
   const handleMenuClick = (key: string) => {
     if (key === 'profile') onOpenProfile();
+    if (key === 'saved') onOpenSaved?.();
+    if (key === 'bot') onOpenBot?.();
     if (key === 'friendRequests') setFriendRequestsOpen(true);
     if (key === 'blocked') onOpenBlocked();
     if (key === 'logout') onLogout();
@@ -129,6 +145,14 @@ const Sidebar = ({
             ● Đang hoạt động
           </Text>
         </div>
+        <Badge count={notificationUnread} size="small" offset={[-2, 2]}>
+          <Button
+            type="text"
+            icon={<BellOutlined />}
+            onClick={() => setNotificationsOpen(true)}
+            title="Thông báo"
+          />
+        </Badge>
         <Dropdown
           menu={{ items: menuItems, onClick: ({ key }) => handleMenuClick(key) }}
           trigger={['click']}
@@ -264,6 +288,8 @@ const Sidebar = ({
         open={friendRequestsOpen}
         onClose={() => setFriendRequestsOpen(false)}
       />
+
+      <NotificationsDrawer open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </div>
   );
 };

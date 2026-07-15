@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import Notification from '@/models/notification';
+import Block from '@/models/block';
 import ConversationMember from '@/models/conversation_member';
 import { logger } from '@/helpers/logger';
 
@@ -42,7 +43,7 @@ const notificationService = {
       const members = await ConversationMember.find({
         conversationId,
         userId: { $ne: senderId },
-      }).select('userId');
+      }).select('userId mutedUntil');
 
       if (members.length === 0) return;
 
@@ -52,6 +53,19 @@ const notificationService = {
       await Promise.all(
         members.map(async (member) => {
           const recipientId = String(member.userId);
+          if (member.mutedUntil && member.mutedUntil > new Date()) {
+            return;
+          }
+
+          // Không báo tin nếu hai phía đã chặn nhau (phòng trường hợp tin đã tồn tại / group edge)
+          const blocked = await Block.findOne({
+            $or: [
+              { userId: senderId, blockedUserId: recipientId },
+              { userId: recipientId, blockedUserId: senderId },
+            ],
+          }).lean();
+          if (blocked) return;
+
           if (isUserInConversationRoom(io, conversationId, recipientId)) {
             return;
           }
@@ -64,10 +78,61 @@ const notificationService = {
           });
 
           io.to(`user:${recipientId}`).emit('notification:new', { notification });
+
+          const pushService = (await import('@/services/pushService')).default;
+          await pushService.sendToUser(recipientId, {
+            title: 'Hudu Chat',
+            body: content,
+            url: `/chat?c=${conversationId}`,
+          });
         }),
       );
     } catch (error) {
       logger.error('notificationService.notifyNewMessage failed', error);
+    }
+  },
+
+  notifyMentions: async (
+    io: Server,
+    message: any,
+    conversationId: string,
+    senderId: string,
+    mentionedUserIds: string[],
+  ) => {
+    try {
+      const recipientIds = Array.from(
+        new Set(mentionedUserIds.map(String).filter((userId) => userId !== senderId)),
+      );
+      if (recipientIds.length === 0) return;
+
+      const members = await ConversationMember.find({
+        conversationId,
+        userId: { $in: recipientIds },
+      }).select('userId mutedUntil');
+      const senderName = message.senderId?.username || 'Ai đó';
+      const content = `${senderName} đã nhắc đến bạn: ${buildMessagePreview(message)}`;
+
+      await Promise.all(
+        members.map(async (member) => {
+          const recipientId = String(member.userId);
+          if (
+            (member.mutedUntil && member.mutedUntil > new Date()) ||
+            isUserInConversationRoom(io, conversationId, recipientId)
+          ) {
+            return;
+          }
+
+          const notification = await Notification.create({
+            userId: recipientId,
+            content,
+            type: 'mention',
+            link: `/chat/${conversationId}`,
+          });
+          io.to(`user:${recipientId}`).emit('notification:new', { notification });
+        }),
+      );
+    } catch (error) {
+      logger.error('notificationService.notifyMentions failed', error);
     }
   },
 

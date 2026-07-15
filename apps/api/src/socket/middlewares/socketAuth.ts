@@ -1,6 +1,27 @@
 import { Socket } from 'socket.io';
-import { parseCookie } from 'cookie';
 import { verifyToken, TokenPayload } from '@/providers/JwtProvider';
+
+// NOTE: cookie@2.x is ESM-only and breaks under CommonJS (`parse is not a function`),
+// which silently rejected every cookie-authenticated socket. Parse manually instead.
+const parseCookieHeader = (header: string): Record<string, string> => {
+  const cookies: Record<string, string> = {};
+  for (const part of header.split(';')) {
+    const index = part.indexOf('=');
+    if (index < 0) continue;
+    const key = part.slice(0, index).trim();
+    if (!key) continue;
+    let value = part.slice(index + 1).trim();
+    if (value.startsWith('"') && value.endsWith('"')) {
+      value = value.slice(1, -1);
+    }
+    try {
+      cookies[key] = decodeURIComponent(value);
+    } catch {
+      cookies[key] = value;
+    }
+  }
+  return cookies;
+};
 
 export const socketAuthMiddleware = async (
   socket: Socket,
@@ -10,7 +31,7 @@ export const socketAuthMiddleware = async (
     let token: string | undefined = socket.handshake.auth?.token;
 
     if (!token && socket.handshake.headers.cookie) {
-      const cookies = parseCookie(socket.handshake.headers.cookie);
+      const cookies = parseCookieHeader(socket.handshake.headers.cookie);
       token = cookies.accessToken;
     }
 

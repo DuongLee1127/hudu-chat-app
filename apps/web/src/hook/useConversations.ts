@@ -108,3 +108,69 @@ export function useArchiveConversation() {
     },
   });
 }
+
+export function useCreateInvite(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => conversationService.createInvite(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['conversations', id] }),
+  });
+}
+
+export function useJoinByInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => conversationService.joinByInvite(token),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+}
+
+export function usePinMessage(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: string) => conversationService.pinMessage(id, messageId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['conversations', id] }),
+  });
+}
+
+export function useUnpinMessage(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: string) => conversationService.unpinMessage(id, messageId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['conversations', id] }),
+  });
+}
+
+export function useOpenSavedMessages() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => conversationService.getOrCreateSavedMessages(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+}
+
+export function useOpenBotConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => conversationService.openBotConversation(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+  });
+}
+
+export function useCreatePoll(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { question: string; options: string[] }) =>
+      conversationService.createPoll(conversationId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
+export function useSummarizeConversation(conversationId: string) {
+  return useMutation({
+    mutationFn: () => conversationService.summarize(conversationId),
+  });
+}

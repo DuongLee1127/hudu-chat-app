@@ -58,5 +58,9 @@ const router = Router();
 
 router.patch('/:id', authMiddleware, messageController.editMessage);
 router.delete('/:id', authMiddleware, messageController.deleteMessage);
+router.post('/:id/reactions', authMiddleware, messageController.toggleReaction);
+router.post('/:id/forward', authMiddleware, messageController.forwardMessage);
+router.post('/:id/poll/vote', authMiddleware, messageController.votePoll);
+router.get('/:id/poll', authMiddleware, messageController.getPoll);
 
 export default router;

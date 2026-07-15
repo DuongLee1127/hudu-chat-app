@@ -1,4 +1,9 @@
+import dns from 'dns';
 import mongoose from 'mongoose';
+
+// Local/ISP DNS on some Windows setups refuses SRV queries (querySrv ECONNREFUSED),
+// which breaks mongodb+srv:// connection strings. Force public resolvers for Node.
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 export const connect = async () => {
   try {

@@ -1,6 +1,7 @@
 'use client';
 
-import { Form, Input, Button, Card, Typography, Divider, Flex } from 'antd';
+import { useEffect } from 'react';
+import { Form, Input, Button, Card, Typography, Divider, Flex, Checkbox } from 'antd';
 import { MailOutlined, LockOutlined, MessageOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -12,14 +13,30 @@ import { useLogin } from '@/hook/useAuth';
 import type { LoginPayload } from '@/types/auth';
 import type { ApiResponse } from '@/types/api';
 
+const REMEMBER_EMAIL_KEY = 'halo_remembered_email';
+
 const SignInPage = () => {
   const router = useRouter();
   const loginMutation = useLogin();
+  const [form] = Form.useForm<LoginPayload>();
+
+  // Tự điền email đã ghi nhớ từ lần đăng nhập trước
+  useEffect(() => {
+    const savedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY);
+    if (savedEmail) {
+      form.setFieldsValue({ email: savedEmail, rememberMe: true });
+    }
+  }, [form]);
 
   // Xử lý đăng nhập
   const handleLogin = (values: LoginPayload) => {
     loginMutation.mutate(values, {
       onSuccess: () => {
+        if (values.rememberMe) {
+          localStorage.setItem(REMEMBER_EMAIL_KEY, values.email);
+        } else {
+          localStorage.removeItem(REMEMBER_EMAIL_KEY);
+        }
         notify.success('Đăng nhập thành công!');
         router.push('/chat');
         router.refresh();
@@ -105,11 +122,12 @@ const SignInPage = () => {
           </div>
 
           <Form
+            form={form}
             name="signin"
             onFinish={handleLogin}
             size="large"
             layout="vertical"
-            autoComplete="off"
+            autoComplete="on"
           >
             <Form.Item
               name="email"
@@ -119,7 +137,11 @@ const SignInPage = () => {
                 { type: 'email', message: 'Email không hợp lệ!' },
               ]}
             >
-              <Input prefix={<MailOutlined />} placeholder="ban@example.com" />
+              <Input
+                prefix={<MailOutlined />}
+                placeholder="ban@example.com"
+                autoComplete="email"
+              />
             </Form.Item>
 
             <Form.Item
@@ -130,7 +152,15 @@ const SignInPage = () => {
                 { min: 8, message: 'Mật khẩu phải có ít nhất 8 ký tự!' },
               ]}
             >
-              <Input.Password prefix={<LockOutlined />} placeholder="••••••••" />
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+            </Form.Item>
+
+            <Form.Item name="rememberMe" valuePropName="checked" style={{ marginBottom: 12 }}>
+              <Checkbox>Ghi nhớ đăng nhập</Checkbox>
             </Form.Item>
 
             <Form.Item style={{ marginBottom: 12 }}>

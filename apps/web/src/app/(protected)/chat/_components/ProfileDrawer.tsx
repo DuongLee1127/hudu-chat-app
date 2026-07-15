@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { Avatar, Button, Drawer, Form, Input, Tabs } from 'antd';
+import { useEffect, useState } from 'react';
+import { Avatar, Button, Drawer, Form, Input, Switch, Tabs, Typography } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
 
@@ -9,10 +9,12 @@ import { notify } from '@/lib/notify';
 import { useUpdateProfile, useChangePassword } from '@/hook/useUser';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useIsMobile } from '@/hook/useMediaQuery';
+import { applyTheme, getStoredTheme, type HuduTheme } from '@/lib/theme-preference';
 import type { User, UpdateProfilePayload, ChangePasswordPayload } from '@/types/user';
 import type { ApiResponse } from '@/types/api';
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 interface ProfileDrawerProps {
   open: boolean;
@@ -27,6 +29,11 @@ const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
 
   const updateProfileMutation = useUpdateProfile();
   const changePasswordMutation = useChangePassword();
+  const [theme, setTheme] = useState<HuduTheme>('light');
+
+  useEffect(() => {
+    setTheme(getStoredTheme());
+  }, []);
 
   useEffect(() => {
     if (currentUser && open) {
@@ -74,6 +81,28 @@ const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
         >
           {currentUser ? initialOf(currentUser.username) : undefined}
         </Avatar>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+          padding: '10px 12px',
+          borderRadius: 10,
+          background: '#f4f5fb',
+        }}
+      >
+        <Text>Giao diện tối nhẹ</Text>
+        <Switch
+          checked={theme === 'soft-dark'}
+          onChange={(checked) => {
+            const next: HuduTheme = checked ? 'soft-dark' : 'light';
+            setTheme(next);
+            applyTheme(next);
+          }}
+        />
       </div>
 
       <Tabs

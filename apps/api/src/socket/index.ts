@@ -12,7 +12,8 @@ let io: Server | null = null;
 export const initSocket = (server: HttpServer) => {
   io = new Server(server, {
     cors: {
-      origin: 'http://localhost:3000',
+      // Match Express CORS so localhost / 127.0.0.1 / LAN origins all work in dev.
+      origin: true,
       credentials: true,
     },
   });

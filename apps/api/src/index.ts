@@ -9,6 +9,8 @@ import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from '@/config/swagger';
 import { connect } from '@/config/db';
 import { initSocket } from '@/socket';
+import { ensureHuduBot } from '@/services/botService';
+import { startRemindProcessor } from '@/jobs/remindProcessor';
 
 import authRouter from '@/routes/authRouter';
 import userRouter from '@/routes/userRouter';
@@ -25,7 +27,11 @@ import adminRouter from '@/routes/adminRouter';
 const PORT = process.env.PORT || 5000;
 
 const app = express();
-connect();
+
+connect().then(() => {
+  ensureHuduBot().catch((err) => console.error('Failed to seed HuduBot', err));
+  startRemindProcessor();
+});
 
 app.use(
   cors({
@@ -37,10 +43,8 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(morgan('dev'));
 
-// swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// routes`
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/conversations', conversationRouter);

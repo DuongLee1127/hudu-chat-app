@@ -1,11 +1,13 @@
 import mongoose from 'mongoose';
 import Message from '@/models/message';
 import Attachment from '@/models/attachment';
+import Block from '@/models/block';
 import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
 import User from '@/models/user';
 import { assertMember, assertAdmin } from '@/services/membershipService';
 import { sanitizeText } from '@/helpers/sanitize';
+import { getLinkPreview } from '@/helpers/linkPreview';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000; // 15 phút
 
@@ -13,7 +15,32 @@ const populateMessage = (query: any) =>
   query
     .populate({ path: 'senderId', select: '_id username avatar' })
     .populate({ path: 'attachmentIds' })
+    .populate({ path: 'reactions.userId', select: '_id username avatar' })
     .populate({ path: 'replyToMessageId', select: '_id content senderId type isDeleted' });
+
+/** Chặn gửi tin trong DM nếu một trong hai phía đã chặn nhau */
+const assertNotBlockedInPrivateChat = async (conversationId: string, userId: string) => {
+  const conversation = await Conversation.findById(conversationId).select('type');
+  if (!conversation || conversation.type !== 'private') return;
+
+  const members = await ConversationMember.find({ conversationId }).select('userId').lean();
+  const otherUserId = members
+    .map((m) => String(m.userId))
+    .find((id) => id !== userId);
+
+  if (!otherUserId) return;
+
+  const blocked = await Block.findOne({
+    $or: [
+      { userId, blockedUserId: otherUserId },
+      { userId: otherUserId, blockedUserId: userId },
+    ],
+  }).lean();
+
+  if (blocked) {
+    throw new Error('Không thể gửi tin nhắn vì một trong hai đã chặn nhau!');
+  }
+};
 
 const messageService = {
   listMessages: async (
@@ -61,6 +88,7 @@ const messageService = {
   ) => {
     try {
       await assertMember(conversationId, userId);
+      await assertNotBlockedInPrivateChat(conversationId, userId);
 
       const sender = await User.findById(userId).select('accountStatus');
       if (sender?.accountStatus === 'locked') {
@@ -95,13 +123,37 @@ const messageService = {
         }
       }
 
+      const normalizedContent = content?.trim() || '';
+      const mentionedUsernames = Array.from(
+        new Set(
+          Array.from(normalizedContent.matchAll(/@([a-zA-Z0-9_]+)/g), (match) => match[1].toLowerCase()),
+        ),
+      );
+      const [memberships, linkPreview] = await Promise.all([
+        mentionedUsernames.length
+          ? ConversationMember.find({ conversationId }).select('userId').lean()
+          : Promise.resolve([]),
+        data.type !== 'text' && data.type !== undefined
+          ? Promise.resolve(null)
+          : getLinkPreview(normalizedContent),
+      ]);
+      const memberIds = memberships.map((membership) => membership.userId);
+      const mentionedUsers = memberIds.length
+        ? await User.find({
+            _id: { $in: memberIds },
+            username: { $in: mentionedUsernames.map((username) => new RegExp(`^${username}$`, 'i')) },
+          }).select('_id')
+        : [];
+
       const message = await Message.create({
         conversationId,
         senderId: userId,
-        content: content?.trim() || '',
+        content: normalizedContent,
         type: data.type || 'text',
         attachmentIds,
         replyToMessageId: data.replyToMessageId || undefined,
+        mentionedUserIds: mentionedUsers.map((user) => user._id),
+        linkPreview: linkPreview || undefined,
       });
 
       if (attachmentIds.length > 0) {
@@ -180,6 +232,71 @@ const messageService = {
     }
   },
 
+  toggleReaction: async (userId: string, messageId: string, emoji: string) => {
+    const normalizedEmoji = emoji?.trim();
+    if (!normalizedEmoji || normalizedEmoji.length > 16) {
+      throw new Error('Biểu tượng cảm xúc không hợp lệ!');
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message || message.isDeleted) {
+      throw new Error('Không tìm thấy tin nhắn!');
+    }
+    await assertMember(String(message.conversationId), userId);
+
+    const existingIndex = message.reactions.findIndex((reaction) => String(reaction.userId) === userId);
+    if (existingIndex >= 0) {
+      if (message.reactions[existingIndex].emoji === normalizedEmoji) {
+        message.reactions.splice(existingIndex, 1);
+      } else {
+        message.reactions[existingIndex].emoji = normalizedEmoji;
+      }
+    } else {
+      message.reactions.push({ emoji: normalizedEmoji, userId: new mongoose.Types.ObjectId(userId) });
+    }
+    await message.save();
+    return populateMessage(Message.findById(message._id)).exec();
+  },
+
+  forwardMessage: async (userId: string, messageId: string, targetConversationIds: string[] = []) => {
+    const source = await Message.findById(messageId);
+    if (!source || source.isDeleted) {
+      throw new Error('Không tìm thấy tin nhắn!');
+    }
+    await assertMember(String(source.conversationId), userId);
+
+    const targets = Array.from(new Set(targetConversationIds.map(String).filter(Boolean)));
+    if (targets.length === 0) {
+      throw new Error('Hãy chọn ít nhất một hội thoại để chuyển tiếp!');
+    }
+
+    await Promise.all(targets.map((conversationId) => assertMember(conversationId, userId)));
+    const created = await Promise.all(
+      targets.map(async (conversationId) => {
+        const message = await Message.create({
+          conversationId,
+          senderId: userId,
+          content: source.content,
+          type: source.type,
+          attachmentIds: source.attachmentIds,
+        });
+        await Promise.all([
+          Conversation.findByIdAndUpdate(conversationId, {
+            lastMessageId: message._id,
+            lastMessageAt: message.createdAt,
+          }),
+          ConversationMember.updateOne(
+            { conversationId, userId },
+            { lastReadMessageId: message._id, lastReadAt: message.createdAt },
+          ),
+        ]);
+        return populateMessage(Message.findById(message._id)).exec();
+      }),
+    );
+
+    return created;
+  },
+
   markAsRead: async (userId: string, conversationId: string, lastReadMessageId: string) => {
     try {
       const membership = await assertMember(conversationId, userId);
@@ -197,6 +314,20 @@ const messageService = {
     } catch (error) {
       throw error;
     }
+  },
+
+  markAsDelivered: async (userId: string, messageId: string) => {
+    const message = await Message.findById(messageId);
+    if (!message || message.isDeleted) {
+      throw new Error('Không tìm thấy tin nhắn!');
+    }
+    await assertMember(String(message.conversationId), userId);
+    if (String(message.senderId) === userId) {
+      throw new Error('Không thể đánh dấu đã nhận tin nhắn của chính bạn!');
+    }
+
+    await Message.updateOne({ _id: messageId }, { $addToSet: { deliveredTo: userId } });
+    return { conversationId: String(message.conversationId), messageId };
   },
 
   getUnreadCount: async (userId: string, conversationId: string) => {
@@ -218,6 +349,77 @@ const messageService = {
     } catch (error) {
       throw error;
     }
+  },
+
+  createPoll: async (
+    userId: string,
+    conversationId: string,
+    question: string,
+    options: string[],
+  ) => {
+    await assertMember(conversationId, userId);
+    await assertNotBlockedInPrivateChat(conversationId, userId);
+    const cleanedQuestion = question.trim();
+    const cleanedOptions = options.map((o) => o.trim()).filter(Boolean);
+    if (!cleanedQuestion) throw new Error('Câu hỏi không được để trống!');
+    if (cleanedOptions.length < 2) throw new Error('Cần ít nhất 2 lựa chọn!');
+    if (cleanedOptions.length > 8) throw new Error('Tối đa 8 lựa chọn!');
+
+    const Poll = (await import('@/models/poll')).default;
+    const message = await Message.create({
+      conversationId,
+      senderId: userId,
+      content: cleanedQuestion,
+      type: 'poll',
+    });
+
+    await Poll.create({
+      conversationId,
+      messageId: message._id,
+      question: cleanedQuestion,
+      options: cleanedOptions.map((text) => ({ text, voterIds: [] })),
+      createdBy: userId,
+    });
+
+    await Conversation.findByIdAndUpdate(conversationId, {
+      lastMessageId: message._id,
+      lastMessageAt: message.createdAt,
+    });
+
+    return populateMessage(Message.findById(message._id)).exec();
+  },
+
+  votePoll: async (userId: string, messageId: string, optionIndex: number) => {
+    const Poll = (await import('@/models/poll')).default;
+    const message = await Message.findById(messageId);
+    if (!message || message.type !== 'poll' || message.isDeleted) {
+      throw new Error('Không tìm thấy bình chọn!');
+    }
+    await assertMember(String(message.conversationId), userId);
+
+    const poll = await Poll.findOne({ messageId });
+    if (!poll) throw new Error('Không tìm thấy bình chọn!');
+    if (optionIndex < 0 || optionIndex >= poll.options.length) {
+      throw new Error('Lựa chọn không hợp lệ!');
+    }
+
+    poll.options.forEach((opt) => {
+      opt.voterIds = opt.voterIds.filter((id) => String(id) !== userId) as any;
+    });
+    poll.options[optionIndex].voterIds.push(userId as any);
+    await poll.save();
+
+    return { poll, message: await populateMessage(Message.findById(messageId)).exec() };
+  },
+
+  getPollByMessageId: async (userId: string, messageId: string) => {
+    const Poll = (await import('@/models/poll')).default;
+    const message = await Message.findById(messageId);
+    if (!message) throw new Error('Không tìm thấy tin nhắn!');
+    await assertMember(String(message.conversationId), userId);
+    const poll = await Poll.findOne({ messageId });
+    if (!poll) throw new Error('Không tìm thấy bình chọn!');
+    return poll;
   },
 };
 

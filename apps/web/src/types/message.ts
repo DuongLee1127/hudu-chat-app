@@ -1,4 +1,4 @@
-export type MessageType = 'text' | 'image' | 'file' | 'video' | 'audio' | 'system';
+export type MessageType = 'text' | 'image' | 'file' | 'video' | 'audio' | 'system' | 'poll';
 
 export interface MessageSender {
   _id: string;
@@ -26,6 +26,18 @@ export interface MessageReplyPreview {
   isDeleted: boolean;
 }
 
+export interface MessageReaction {
+  emoji: string;
+  userId: MessageSender | string;
+}
+
+export interface MessageLinkPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
 export interface Message {
   _id: string;
   conversationId: string;
@@ -34,13 +46,18 @@ export interface Message {
   type: MessageType;
   attachmentIds: MessageAttachment[];
   replyToMessageId?: MessageReplyPreview | null;
+  mentionedUserIds?: string[];
+  linkPreview?: MessageLinkPreview | null;
+  reactions: MessageReaction[];
   isEdited: boolean;
   isDeleted: boolean;
+  deliveredTo?: string[];
   createdAt: string;
   updatedAt: string;
   /** Client-only fields, never persisted on the backend. */
   tempId?: string;
-  status?: 'sending' | 'sent' | 'failed';
+  pendingAttachmentIds?: string[];
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 }
 
 export interface ListMessagesParams {

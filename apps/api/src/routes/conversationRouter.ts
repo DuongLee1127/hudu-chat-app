@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import conversationController from '@/controllers/conversationController';
 import messageController from '@/controllers/messageController';
+import attachmentController from '@/controllers/attachmentController';
 import { authMiddleware } from '@/middlewares/authMiddleware';
 import { sendMessageRateLimiter } from '@/middlewares/rateLimitMiddleware';
 
@@ -307,7 +308,16 @@ const router = Router();
 
 router.post('/direct', authMiddleware, conversationController.createDirectConversation);
 router.post('/group', authMiddleware, conversationController.createGroupConversation);
+router.post('/join', authMiddleware, conversationController.joinByInvite);
+router.post('/saved', authMiddleware, conversationController.getOrCreateSavedMessages);
+router.post('/bot', authMiddleware, conversationController.openBotConversation);
 router.get('/', authMiddleware, conversationController.listMyConversations);
+router.get('/:id/attachments', authMiddleware, attachmentController.listConversationAttachments);
+router.post('/:id/invite', authMiddleware, conversationController.createInvite);
+router.post('/:id/pins/:messageId', authMiddleware, conversationController.pinMessage);
+router.delete('/:id/pins/:messageId', authMiddleware, conversationController.unpinMessage);
+router.post('/:id/polls', authMiddleware, messageController.createPoll);
+router.post('/:id/summarize', authMiddleware, conversationController.summarize);
 router.get('/:id', authMiddleware, conversationController.getConversationDetail);
 router.patch('/:id', authMiddleware, conversationController.updateConversation);
 router.post('/:id/members', authMiddleware, conversationController.addMembers);

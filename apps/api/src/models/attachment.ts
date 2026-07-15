@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { signAttachmentToken } from '@/providers/AttachmentTokenProvider';
 
-export type AttachmentResourceType = 'image' | 'raw';
+export type AttachmentResourceType = 'image' | 'video' | 'raw';
 
 export interface IAttachment extends Document {
   uploaderId: mongoose.Types.ObjectId;
@@ -40,7 +40,7 @@ const AttachmentSchema: Schema = new Schema(
     },
     resourceType: {
       type: String,
-      enum: ['image', 'raw'],
+      enum: ['image', 'video', 'raw'],
       required: true,
     },
     format: {

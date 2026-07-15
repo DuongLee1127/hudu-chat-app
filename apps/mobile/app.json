@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Hudu Chat",
+    "slug": "hudu-chat-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#5b5bf6"
+      }
+    }
+  }
+}

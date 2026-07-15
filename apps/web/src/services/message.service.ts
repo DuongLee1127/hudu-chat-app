@@ -29,6 +29,16 @@ export const messageService = {
   deleteMessage: async (id: string) => {
     return axiosClient.delete<never, ApiResponse<{ success: boolean }>>(`/messages/${id}`);
   },
+  toggleReaction: async (id: string, emoji: string) => {
+    return axiosClient.post<never, ApiResponse<{ message: Message }>>(`/messages/${id}/reactions`, {
+      emoji,
+    });
+  },
+  forwardMessage: async (id: string, targetConversationIds: string[]) => {
+    return axiosClient.post<never, ApiResponse<{ messages: Message[] }>>(`/messages/${id}/forward`, {
+      targetConversationIds,
+    });
+  },
   markAsRead: async (conversationId: string, lastReadMessageId: string) => {
     return axiosClient.post<never, ApiResponse<{ memberSetting: ConversationMember }>>(
       `/conversations/${conversationId}/read`,
@@ -39,5 +49,14 @@ export const messageService = {
     return axiosClient.get<never, ApiResponse<{ unreadCount: number }>>(
       `/conversations/${conversationId}/unread-count`,
     );
+  },
+  votePoll: async (id: string, optionIndex: number) => {
+    return axiosClient.post<never, ApiResponse<{ poll: any; message: Message }>>(
+      `/messages/${id}/poll/vote`,
+      { optionIndex },
+    );
+  },
+  getPoll: async (id: string) => {
+    return axiosClient.get<never, ApiResponse<{ poll: any }>>(`/messages/${id}/poll`);
   },
 };

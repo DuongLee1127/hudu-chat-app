@@ -384,6 +384,9 @@ const router = Router();
  */
 
 router.put('/me', authMiddleware, userController.updateMe);
+router.post('/me/push-subscription', authMiddleware, userController.savePushSubscription);
+router.delete('/me/push-subscription', authMiddleware, userController.removePushSubscription);
+router.post('/me/reminds', authMiddleware, userController.createRemind);
 router.get('/search', authMiddleware, userController.searchUsers);
 router.get('/', authMiddleware, userController.getAllUsers);
 router.get('/me/blocks', authMiddleware, userController.getBlockedUsers);

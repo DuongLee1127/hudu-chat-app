@@ -41,6 +41,28 @@ const attachmentController = {
     }
   },
 
+  listConversationAttachments: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { id: conversationId } = req.params;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+      if (!conversationId) {
+        return sendError(res, 'Conversation ID is required', 400);
+      }
+
+      const attachments = await attachmentService.listConversationAttachments(
+        String(userId),
+        String(conversationId),
+        req.query.type ? String(req.query.type) : undefined,
+      );
+      return sendSuccess(res, { attachments }, 'Get conversation attachments success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 403);
+    }
+  },
+
   downloadAttachment: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

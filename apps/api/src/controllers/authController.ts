@@ -8,22 +8,24 @@ import { logger } from '@/helpers/logger';
 const authController = {
   login: async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
-      const result = await authService.login(email, password);
+      const { email, password, rememberMe } = req.body;
+      const result = await authService.login(email, password, !!rememberMe);
       const { accessToken, refreshToken } = result;
 
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: ms('15m'),
+        maxAge: ms('1h'),
       });
 
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: ms('14d'),
+        // Có "ghi nhớ đăng nhập": cookie sống 30 ngày.
+        // Không: session cookie, mất khi đóng trình duyệt.
+        ...(rememberMe ? { maxAge: ms('30d') } : {}),
       });
 
       return sendSuccess(res, result, 'Login success', 200);
@@ -108,7 +110,7 @@ const authController = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: ms('15m'),
+        maxAge: ms('1h'),
       });
 
       return sendSuccess(res, result, 'Refresh token success', 200);

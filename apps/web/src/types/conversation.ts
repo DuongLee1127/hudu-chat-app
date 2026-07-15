@@ -1,6 +1,15 @@
 import type { User } from './user';
+import type { MessageType, Message } from './message';
 
-export type ConversationType = 'private' | 'group';
+export type ConversationType = 'private' | 'group' | 'self';
+
+export interface ConversationLastMessage {
+  _id: string;
+  content: string;
+  type: MessageType;
+  isDeleted: boolean;
+  senderId?: { _id: string; username: string } | string;
+}
 
 export interface Conversation {
   _id: string;
@@ -9,6 +18,9 @@ export interface Conversation {
   avatar?: string;
   creatorId?: string;
   lastMessageId?: string;
+  pinnedMessageIds?: string[];
+  inviteToken?: string;
+  inviteEnabled: boolean;
   lastMessageAt: string;
   createdAt: string;
   updatedAt: string;
@@ -29,6 +41,8 @@ export interface ConversationOtherMember {
 export interface ConversationListItem extends Conversation {
   memberSetting: MemberSetting | null;
   otherMember?: ConversationOtherMember | null;
+  lastMessage?: ConversationLastMessage | null;
+  unreadCount?: number;
 }
 
 export interface ConversationMember {
@@ -38,6 +52,7 @@ export interface ConversationMember {
   role: 'admin' | 'member';
   joinedAt: string;
   lastReadAt: string;
+  lastReadMessageId?: string | null;
   mutedUntil?: string | null;
   isArchived: boolean;
 }
@@ -62,4 +77,5 @@ export interface ListConversationsParams {
 export interface ConversationDetailResult {
   conversation: Conversation;
   members: ConversationMember[];
+  pinnedMessages: Message[];
 }

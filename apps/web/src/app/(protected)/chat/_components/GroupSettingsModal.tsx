@@ -10,7 +10,12 @@ import { colorForId, initialOf } from '@/lib/avatar';
 import { useFriends } from '@/hook/useFriend';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
 import { useIsMobile } from '@/hook/useMediaQuery';
-import { useUpdateConversation, useAddMembers, useRemoveMember } from '@/hook/useConversations';
+import {
+  useUpdateConversation,
+  useAddMembers,
+  useRemoveMember,
+  useCreateInvite,
+} from '@/hook/useConversations';
 import type { ConversationMember } from '@/types/conversation';
 import type { ApiResponse } from '@/types/api';
 
@@ -21,6 +26,8 @@ interface GroupSettingsModalProps {
   onClose: () => void;
   conversationId: string;
   conversationName?: string;
+  inviteToken?: string;
+  inviteEnabled: boolean;
   members: ConversationMember[];
   currentUserId?: string;
 }
@@ -30,6 +37,8 @@ const GroupSettingsModal = ({
   onClose,
   conversationId,
   conversationName,
+  inviteToken: initialInviteToken,
+  inviteEnabled,
   members,
   currentUserId,
 }: GroupSettingsModalProps) => {
@@ -38,11 +47,15 @@ const GroupSettingsModal = ({
 
   const [name, setName] = useState(conversationName || '');
   const [memberQuery, setMemberQuery] = useState('');
+  const [inviteToken, setInviteToken] = useState(initialInviteToken);
   const debouncedQuery = useDebouncedValue(memberQuery, 350);
 
   useEffect(() => {
-    if (open) setName(conversationName || '');
-  }, [open, conversationName]);
+    if (open) {
+      setName(conversationName || '');
+      setInviteToken(initialInviteToken);
+    }
+  }, [open, conversationName, initialInviteToken]);
 
   const { data: searchData, isLoading: searchLoading } = useFriends({
     q: debouncedQuery,
@@ -59,6 +72,7 @@ const GroupSettingsModal = ({
   const updateMutation = useUpdateConversation(conversationId);
   const addMembersMutation = useAddMembers(conversationId);
   const removeMemberMutation = useRemoveMember(conversationId);
+  const createInviteMutation = useCreateInvite(conversationId);
 
   const handleApiError = (err: unknown, fallback: string) => {
     const axiosErr = err as AxiosError<ApiResponse<null>>;
@@ -103,6 +117,18 @@ const GroupSettingsModal = ({
     });
   };
 
+  const handleCreateInvite = () => {
+    createInviteMutation.mutate(undefined, {
+      onSuccess: (response) => {
+        setInviteToken(response.data.inviteToken);
+        notify.success('Đã tạo liên kết mời!');
+      },
+      onError: (err) => handleApiError(err, 'Tạo liên kết mời thất bại!'),
+    });
+  };
+
+  const inviteUrl = inviteToken ? `${window.location.origin}/chat?invite=${inviteToken}` : '';
+
   return (
     <Modal
       title="Quản lý nhóm"
@@ -133,6 +159,35 @@ const GroupSettingsModal = ({
             </Button>
           )}
         </div>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Link mời
+        </Text>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <Input value={inviteUrl} readOnly placeholder="Chưa có liên kết mời" />
+          {isAdmin && (
+            <Button type="primary" loading={createInviteMutation.isPending} onClick={handleCreateInvite}>
+              {inviteToken ? 'Làm mới link' : 'Tạo link'}
+            </Button>
+          )}
+          {inviteUrl && (
+            <Button
+              onClick={() =>
+                navigator.clipboard.writeText(inviteUrl).then(
+                  () => notify.success('Đã sao chép liên kết mời!'),
+                  () => notify.error('Không thể sao chép liên kết mời!'),
+                )
+              }
+            >
+              Sao chép
+            </Button>
+          )}
+        </div>
+        <Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+          {inviteEnabled ? 'Liên kết mời đang được bật.' : 'Liên kết mời đang tắt.'}
+        </Text>
       </div>
 
       <div style={{ marginBottom: 20 }}>
