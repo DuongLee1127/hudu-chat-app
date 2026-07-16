@@ -450,7 +450,7 @@ const ChatWindow = ({
                 }}
               >
                 {attachment.mimeType.startsWith('image/') ? (
-                  <img
+                  <Image
                     src={attachment.thumbnailUrl || attachment.url}
                     alt={attachment.fileName}
                     style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }}
