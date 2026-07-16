@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/socket.io/:path*',
-        destination: `http://127.0.0.1:${apiPort}/socket.io/:path*`,
+        destination: `http://127.0.0.1:${apiPort}/socket.io/`,
       },
     ];
   },

@@ -1,7 +1,10 @@
 import type { Server as HttpServer } from 'http';
 import { Server } from 'socket.io';
 import { socketAuthMiddleware } from '@/socket/middlewares/socketAuth';
-import { handleConnectionPresence, handleDisconnectPresence } from '@/socket/handlers/presenceHandler';
+import {
+  handleConnectionPresence,
+  handleDisconnectPresence,
+} from '@/socket/handlers/presenceHandler';
 import { registerRoomHandlers } from '@/socket/handlers/roomHandler';
 import { registerMessageHandlers } from '@/socket/handlers/messageHandler';
 import { registerTypingHandlers } from '@/socket/handlers/typingHandler';
@@ -12,7 +15,7 @@ let io: Server | null = null;
 export const initSocket = (server: HttpServer) => {
   io = new Server(server, {
     cors: {
-      origin: 'http://localhost:3000',
+      origin: true,
       credentials: true,
     },
   });
