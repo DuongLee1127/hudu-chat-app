@@ -1,16 +1,13 @@
 import { Socket } from 'socket.io';
-import { parseCookie } from 'cookie';
+import { parse } from 'cookie';
 import { verifyToken, TokenPayload } from '@/providers/JwtProvider';
 
-export const socketAuthMiddleware = async (
-  socket: Socket,
-  next: (err?: Error) => void,
-) => {
+export const socketAuthMiddleware = async (socket: Socket, next: (err?: Error) => void) => {
   try {
     let token: string | undefined = socket.handshake.auth?.token;
 
     if (!token && socket.handshake.headers.cookie) {
-      const cookies = parseCookie(socket.handshake.headers.cookie);
+      const cookies = parse(socket.handshake.headers.cookie);
       token = cookies.accessToken;
     }
 
