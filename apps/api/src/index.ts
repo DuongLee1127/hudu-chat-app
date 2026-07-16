@@ -22,7 +22,7 @@ import searchRouter from '@/routes/searchRouter';
 import reportRouter from '@/routes/reportRouter';
 import adminRouter from '@/routes/adminRouter';
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.API_PORT || process.env.PORT || 5000;
 
 const app = express();
 connect();

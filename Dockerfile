@@ -47,5 +47,5 @@ USER node
 # Expose Space port
 EXPOSE 7860
 
-# Start deployment using start script
-CMD ["./start.sh"]
+# Start deployment using start script with bash explicitly
+CMD ["bash", "./start.sh"]
