@@ -1,6 +1,6 @@
 'use client';
 
-import { App, Avatar, Dropdown, Empty, Flex, Skeleton, Typography } from 'antd';
+import { App, Avatar, Badge, Dropdown, Empty, Flex, Skeleton, Typography } from 'antd';
 import { TeamOutlined, MutedOutlined, InboxOutlined, MoreOutlined } from '@ant-design/icons';
 import { ExclamationCircleFilled } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
@@ -35,12 +35,41 @@ const getDisplayName = (item: ConversationListItem) =>
 const getAvatarUrl = (item: ConversationListItem) =>
   item.type === 'group' ? item.avatar : item.otherMember?.avatar;
 
+const ATTACHMENT_PREVIEW_BY_TYPE: Partial<Record<string, string>> = {
+  image: '[Hình ảnh]',
+  file: '[Tệp đính kèm]',
+  video: '[Video]',
+  audio: '[Âm thanh]',
+};
+
+const getLastMessagePreview = (item: ConversationListItem, currentUserId?: string) => {
+  const lastMessage = item.lastMessage;
+  if (!lastMessage) {
+    return item.type === 'group' ? 'Nhóm chat' : 'Trò chuyện riêng tư';
+  }
+  if (lastMessage.isDeleted) return 'Tin nhắn đã được thu hồi';
+
+  const isMine = lastMessage.senderId._id === currentUserId;
+  const prefix = isMine
+    ? 'Bạn: '
+    : item.type === 'group'
+      ? `${lastMessage.senderId.username}: `
+      : '';
+  const content = ATTACHMENT_PREVIEW_BY_TYPE[lastMessage.type] || lastMessage.content;
+  return `${prefix}${content}`;
+};
+
 interface ConversationsListProps {
   selectedConversationId?: string | null;
   onSelect?: (conversationId: string) => void;
+  currentUserId?: string;
 }
 
-const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsListProps) => {
+const ConversationsList = ({
+  selectedConversationId,
+  onSelect,
+  currentUserId,
+}: ConversationsListProps) => {
   const { modal } = App.useApp();
   const { data, isLoading } = useListConversations(LIST_PARAMS);
   const muteMutation = useMuteConversation();
@@ -123,6 +152,7 @@ const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsLi
         const isArchived = !!conv.memberSetting?.isArchived;
         const displayName = getDisplayName(conv);
         const avatarUrl = getAvatarUrl(conv);
+        const hasUnread = (conv.unreadCount || 0) > 0;
 
         return (
           <div
@@ -155,14 +185,27 @@ const ConversationsList = ({ selectedConversationId, onSelect }: ConversationsLi
                   {isMuted && <MutedOutlined style={{ color: '#9a9ab0', fontSize: 12 }} />}
                   {isArchived && <InboxOutlined style={{ color: '#9a9ab0', fontSize: 12 }} />}
                 </Flex>
-                <Text type="secondary" ellipsis style={{ fontSize: 12 }}>
-                  {conv.type === 'group' ? 'Nhóm chat' : 'Trò chuyện riêng tư'}
+                <Text
+                  type={hasUnread ? undefined : 'secondary'}
+                  strong={hasUnread}
+                  ellipsis
+                  style={{ fontSize: 12 }}
+                >
+                  {getLastMessagePreview(conv, currentUserId)}
                 </Text>
               </Flex>
               <Flex vertical align="flex-end" gap={4}>
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                  {formatConversationTime(conv.lastMessageAt)}
+                  {formatConversationTime(conv.lastMessage?.createdAt || conv.lastMessageAt)}
                 </Text>
+                {hasUnread && (
+                  <Badge
+                    count={conv.unreadCount}
+                    size="small"
+                    overflowCount={99}
+                    color="#5b5bf6"
+                  />
+                )}
                 <Dropdown
                   menu={{
                     items: [

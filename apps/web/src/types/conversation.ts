@@ -1,6 +1,16 @@
 import type { User } from './user';
+import type { MessageType } from './message';
 
 export type ConversationType = 'private' | 'group';
+
+export interface ConversationLastMessage {
+  _id: string;
+  content: string;
+  type: MessageType;
+  senderId: { _id: string; username: string };
+  isDeleted: boolean;
+  createdAt: string;
+}
 
 export interface Conversation {
   _id: string;
@@ -10,6 +20,7 @@ export interface Conversation {
   creatorId?: string;
   lastMessageId?: string;
   lastMessageAt: string;
+  lastMessage?: ConversationLastMessage | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,6 +40,7 @@ export interface ConversationOtherMember {
 export interface ConversationListItem extends Conversation {
   memberSetting: MemberSetting | null;
   otherMember?: ConversationOtherMember | null;
+  unreadCount: number;
 }
 
 export interface ConversationMember {

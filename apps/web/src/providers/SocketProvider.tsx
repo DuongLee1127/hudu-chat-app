@@ -1,13 +1,14 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSocket } from '@/lib/socket';
 import { useGetMe } from '@/hook/useAuth';
 import { useChatStore } from '@/store/useChatStore';
 import type { Message, ListMessagesResult, SendMessagePayload } from '@/types/message';
-import type { ApiResponse } from '@/types/api';
+import type { ConversationListItem } from '@/types/conversation';
+import type { ApiResponse, PagedResult } from '@/types/api';
 
 interface SocketContextValue {
   socket: Socket;
@@ -44,6 +45,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const socket = getSocket();
   const [connected, setConnected] = useState(false);
 
+  const selectedConversationId = useChatStore((s) => s.selectedConversationId);
+  const selectedConversationIdRef = useRef(selectedConversationId);
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
   useEffect(() => {
     if (!currentUserId) return;
 
@@ -51,6 +58,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
+    const onConnectError = (err: Error) => {
+      console.error('Socket connect_error:', err.message);
+    };
 
     const patchMessagesCache = (
       conversationId: string,
@@ -62,13 +72,52 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       );
     };
 
+    const patchConversationsCache = (message: Message) => {
+      let matched = false;
+      const isOwnMessage = message.senderId._id === currentUserId;
+      const isViewingConversation = selectedConversationIdRef.current === message.conversationId;
+      queryClient.setQueriesData<ApiResponse<PagedResult<ConversationListItem>>>(
+        { queryKey: ['conversations'], exact: false },
+        (old) => {
+          if (!old || !Array.isArray(old.data?.items)) return old;
+          const items = old.data.items;
+          const idx = items.findIndex((c) => c._id === message.conversationId);
+          if (idx === -1) return old;
+          matched = true;
+          const updatedConversation: ConversationListItem = {
+            ...items[idx],
+            lastMessageId: message._id,
+            lastMessageAt: message.createdAt,
+            lastMessage: {
+              _id: message._id,
+              content: message.content,
+              type: message.type,
+              senderId: { _id: message.senderId._id, username: message.senderId.username },
+              isDeleted: message.isDeleted,
+              createdAt: message.createdAt,
+            },
+            unreadCount:
+              !isOwnMessage && !isViewingConversation
+                ? (items[idx].unreadCount || 0) + 1
+                : items[idx].unreadCount,
+          };
+          const rest = items.filter((_, i) => i !== idx);
+          return { ...old, data: { ...old.data, items: [updatedConversation, ...rest] } };
+        },
+      );
+      return matched;
+    };
+
     const onMessageCreated = ({ message, tempId }: { message: Message; tempId?: string }) => {
       patchMessagesCache(message.conversationId, (result) => {
         const withoutTemp = tempId ? result.items.filter((m) => m.tempId !== tempId) : result.items;
         if (withoutTemp.some((m) => m._id === message._id)) return result;
         return { ...result, items: [...withoutTemp, message] };
       });
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      const matched = patchConversationsCache(message);
+      if (!matched) {
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      }
     };
 
     const onMessageUpdated = ({ message }: { message: Message }) => {
@@ -117,6 +166,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
+    socket.on('connect_error', onConnectError);
     socket.on('message:created', onMessageCreated);
     socket.on('message:updated', onMessageUpdated);
     socket.on('message:deleted', onMessageDeleted);
@@ -132,6 +182,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
+      socket.off('connect_error', onConnectError);
       socket.off('message:created', onMessageCreated);
       socket.off('message:updated', onMessageUpdated);
       socket.off('message:deleted', onMessageDeleted);
@@ -154,8 +205,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     setUserTyping,
     setUserStoppedTyping,
   ]);
-
-  const selectedConversationId = useChatStore((s) => s.selectedConversationId);
 
   useEffect(() => {
     if (!connected || !selectedConversationId) return;
@@ -182,8 +231,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }),
     startTyping: (conversationId) => socket.emit('typing:start', { conversationId }),
     stopTyping: (conversationId) => socket.emit('typing:stop', { conversationId }),
-    markRead: (conversationId, lastReadMessageId) =>
-      socket.emit('message:read', { conversationId, lastReadMessageId }),
+    markRead: (conversationId, lastReadMessageId) => {
+      queryClient.setQueriesData<ApiResponse<PagedResult<ConversationListItem>>>(
+        { queryKey: ['conversations'], exact: false },
+        (old) => {
+          if (!old || !Array.isArray(old.data?.items)) return old;
+          const idx = old.data.items.findIndex((c) => c._id === conversationId);
+          if (idx === -1 || !old.data.items[idx].unreadCount) return old;
+          const items = old.data.items.slice();
+          items[idx] = { ...items[idx], unreadCount: 0 };
+          return { ...old, data: { ...old.data, items } };
+        },
+      );
+      socket.emit('message:read', { conversationId, lastReadMessageId });
+    },
   };
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;

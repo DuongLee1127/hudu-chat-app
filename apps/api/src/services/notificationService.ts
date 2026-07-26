@@ -56,6 +56,11 @@ const notificationService = {
             return;
           }
 
+          // Recipient isn't in the conversation's socket room (sidebar, another
+          // chat, or another tab) — mirror message:created to their user room so
+          // the conversations list can still reorder/preview in realtime.
+          io.to(`user:${recipientId}`).emit('message:created', { message });
+
           const notification = await Notification.create({
             userId: recipientId,
             content,

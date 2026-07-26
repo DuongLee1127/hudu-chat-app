@@ -1,7 +1,18 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Avatar, Button, Dropdown, Empty, Image, Input, Skeleton, Typography } from 'antd';
+import {
+  Alert,
+  Avatar,
+  Button,
+  Dropdown,
+  Empty,
+  Image,
+  Input,
+  type InputRef,
+  Skeleton,
+  Typography,
+} from 'antd';
 import {
   SendOutlined,
   SmileOutlined,
@@ -30,6 +41,33 @@ const { Text, Title } = Typography;
 
 const formatMessageTime = (isoDate: string) =>
   new Date(isoDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+const isSameDay = (a: string, b: string) => {
+  const dateA = new Date(a);
+  const dateB = new Date(b);
+  return (
+    dateA.getFullYear() === dateB.getFullYear() &&
+    dateA.getMonth() === dateB.getMonth() &&
+    dateA.getDate() === dateB.getDate()
+  );
+};
+
+const formatDateSeparator = (isoDate: string) => {
+  const date = new Date(isoDate);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+
+  if (isSameDay(isoDate, now.toISOString())) return 'Hôm nay';
+  if (isSameDay(isoDate, yesterday.toISOString())) return 'Hôm qua';
+
+  return date.toLocaleDateString('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
 
 const formatFileSize = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -121,10 +159,14 @@ const ChatWindow = ({
   const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContentRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<InputRef>(null);
   const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevConversationIdRef = useRef<string | null>(null);
+  const stickToBottomRef = useRef(true);
 
-  const { startTyping, stopTyping } = useSocketContext();
+  const { startTyping, stopTyping, markRead } = useSocketContext();
   const typingMap = useChatStore((s) =>
     conversationId ? s.typingByConversation[conversationId] : undefined,
   );
@@ -147,8 +189,51 @@ const ChatWindow = ({
   const canBlock = !isGroup && !!otherMember;
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, conversationId]);
+    if (messagesLoading || isLoading) return;
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const isNewConversation = prevConversationIdRef.current !== conversationId;
+    prevConversationIdRef.current = conversationId;
+    if (isNewConversation) {
+      stickToBottomRef.current = true;
+      el.scrollTop = el.scrollHeight;
+    } else if (stickToBottomRef.current) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }
+  }, [messages.length, messagesLoading, isLoading, conversationId]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    const contentEl = messagesContentRef.current;
+    const containerEl = messagesContainerRef.current;
+    if (!contentEl || !containerEl) return;
+    const observer = new ResizeObserver(() => {
+      if (stickToBottomRef.current) {
+        containerEl.scrollTop = containerEl.scrollHeight;
+      }
+    });
+    observer.observe(contentEl);
+    return () => observer.disconnect();
+  }, [conversationId, isLoading]);
+
+  const handleMessagesScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distanceFromBottom < 80;
+  };
+
+  useEffect(() => {
+    if (!conversationId || isLoading || isBlocked) return;
+    messageInputRef.current?.focus();
+  }, [conversationId, isLoading, isBlocked]);
+
+  useEffect(() => {
+    if (!conversationId || messages.length === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.status === 'sending' || lastMessage.status === 'failed') return;
+    markRead(conversationId, lastMessage._id);
+  }, [conversationId, messages, markRead]);
 
   useEffect(() => {
     return () => {
@@ -247,6 +332,8 @@ const ChatWindow = ({
     setPendingAttachments([]);
     if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
     if (conversationId) stopTyping(conversationId);
+    stickToBottomRef.current = true;
+    messageInputRef.current?.focus();
   };
 
   return (
@@ -338,7 +425,11 @@ const ChatWindow = ({
         />
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
+        className="flex-1 overflow-y-auto p-4 md:p-6"
+      >
         {messagesLoading && <Skeleton paragraph={{ rows: 4 }} active />}
         {!messagesLoading && messages.length === 0 && (
           <Empty
@@ -347,89 +438,118 @@ const ChatWindow = ({
             style={{ marginTop: 40 }}
           />
         )}
-        {!messagesLoading &&
-          messages.map((msg) => {
-            const mine = msg.senderId._id === currentUserId;
-            const showSenderInfo = isGroup && !mine;
-            return (
-              <div
-                key={msg._id}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: mine ? 'flex-end' : 'flex-start',
-                  marginBottom: 16,
-                }}
-              >
-                {showSenderInfo && (
-                  <Text type="secondary" style={{ fontSize: 12, marginBottom: 2, marginLeft: 36 }}>
-                    {msg.senderId.username}
-                  </Text>
-                )}
-                <div
-                  className="max-w-[85%] sm:max-w-[70%]"
-                  style={{ display: 'flex', alignItems: 'flex-end', gap: 8, minWidth: 0 }}
-                >
-                  {showSenderInfo && (
-                    <Avatar
-                      size={28}
-                      src={msg.senderId.avatar || undefined}
-                      style={{ backgroundColor: colorForId(msg.senderId._id), flexShrink: 0 }}
+        <div ref={messagesContentRef}>
+          {!messagesLoading &&
+            messages.map((msg, index) => {
+              const mine = msg.senderId._id === currentUserId;
+              const showSenderInfo = isGroup && !mine;
+              const prevMessage = messages[index - 1];
+              const showDateSeparator =
+                !prevMessage || !isSameDay(prevMessage.createdAt, msg.createdAt);
+              return (
+                <div key={msg._id}>
+                  {showDateSeparator && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        margin: '16px 0',
+                      }}
                     >
-                      {initialOf(msg.senderId.username)}
-                    </Avatar>
+                      <Text
+                        type="secondary"
+                        style={{
+                          fontSize: 12,
+                          background: '#e8e9f5',
+                          padding: '4px 12px',
+                          borderRadius: 12,
+                        }}
+                      >
+                        {formatDateSeparator(msg.createdAt)}
+                      </Text>
+                    </div>
                   )}
                   <div
                     style={{
-                      minWidth: 0,
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 6,
-                      padding:
-                        !msg.isDeleted && msg.attachmentIds?.length && !msg.content
-                          ? 4
-                          : '10px 16px',
-                      borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                      background: mine ? '#5b5bf6' : '#fff',
-                      color: mine ? '#fff' : 'rgba(0,0,0,0.88)',
-                      boxShadow: '0 2px 6px rgba(20,20,60,0.06)',
-                      wordBreak: 'break-word',
-                      fontStyle: msg.isDeleted ? 'italic' : 'normal',
+                      alignItems: mine ? 'flex-end' : 'flex-start',
+                      marginBottom: 16,
                     }}
                   >
-                    {msg.isDeleted ? (
-                      'Tin nhắn đã được thu hồi'
-                    ) : (
-                      <>
-                        {msg.attachmentIds?.map((attachment) => (
-                          <AttachmentPreview key={attachment._id} attachment={attachment} />
-                        ))}
-                        {msg.content}
-                      </>
+                    {showSenderInfo && (
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: 12, marginBottom: 2, marginLeft: 36 }}
+                      >
+                        {msg.senderId.username}
+                      </Text>
                     )}
+                    <div
+                      className="max-w-[85%] sm:max-w-[70%]"
+                      style={{ display: 'flex', alignItems: 'flex-end', gap: 8, minWidth: 0 }}
+                    >
+                      {showSenderInfo && (
+                        <Avatar
+                          size={28}
+                          src={msg.senderId.avatar || undefined}
+                          style={{ backgroundColor: colorForId(msg.senderId._id), flexShrink: 0 }}
+                        >
+                          {initialOf(msg.senderId.username)}
+                        </Avatar>
+                      )}
+                      <div
+                        style={{
+                          minWidth: 0,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 6,
+                          padding:
+                            !msg.isDeleted && msg.attachmentIds?.length && !msg.content
+                              ? 4
+                              : '10px 16px',
+                          borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                          background: mine ? '#5b5bf6' : '#fff',
+                          color: mine ? '#fff' : 'rgba(0,0,0,0.88)',
+                          boxShadow: '0 2px 6px rgba(20,20,60,0.06)',
+                          wordBreak: 'break-word',
+                          fontStyle: msg.isDeleted ? 'italic' : 'normal',
+                        }}
+                      >
+                        {msg.isDeleted ? (
+                          'Tin nhắn đã được thu hồi'
+                        ) : (
+                          <>
+                            {msg.attachmentIds?.map((attachment) => (
+                              <AttachmentPreview key={attachment._id} attachment={attachment} />
+                            ))}
+                            {msg.content}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <Text
+                      type={msg.status === 'failed' ? 'danger' : 'secondary'}
+                      style={{
+                        fontSize: 11,
+                        marginTop: 4,
+                        marginLeft: showSenderInfo ? 36 : 0,
+                      }}
+                    >
+                      {msg.status === 'sending' && 'Đang gửi...'}
+                      {msg.status === 'failed' && 'Gửi thất bại'}
+                      {(!msg.status || msg.status === 'sent') && (
+                        <>
+                          {formatMessageTime(msg.createdAt)}
+                          {msg.isEdited && !msg.isDeleted ? ' · Đã chỉnh sửa' : ''}
+                        </>
+                      )}
+                    </Text>
                   </div>
                 </div>
-                <Text
-                  type={msg.status === 'failed' ? 'danger' : 'secondary'}
-                  style={{
-                    fontSize: 11,
-                    marginTop: 4,
-                    marginLeft: showSenderInfo ? 36 : 0,
-                  }}
-                >
-                  {msg.status === 'sending' && 'Đang gửi...'}
-                  {msg.status === 'failed' && 'Gửi thất bại'}
-                  {(!msg.status || msg.status === 'sent') && (
-                    <>
-                      {formatMessageTime(msg.createdAt)}
-                      {msg.isEdited && !msg.isDeleted ? ' · Đã chỉnh sửa' : ''}
-                    </>
-                  )}
-                </Text>
-              </div>
-            );
-          })}
-        <div ref={bottomRef} />
+              );
+            })}
+        </div>
       </div>
 
       <div className="border-t border-[#eef0f7] bg-white p-3 md:p-4 md:px-6">
@@ -497,11 +617,12 @@ const ChatWindow = ({
             onClick={handlePickFile}
           />
           <Input
+            ref={messageInputRef}
             placeholder={isBlocked ? 'Bạn đã chặn người dùng này' : 'Nhập tin nhắn...'}
             size="large"
             variant="filled"
             value={draft}
-            disabled={isBlocked || sendLoading}
+            disabled={isBlocked}
             onChange={(e) => handleDraftChange(e.target.value)}
             onPressEnter={handleSend}
             style={{ borderRadius: 20 }}

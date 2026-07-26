@@ -1,5 +1,6 @@
 import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
+import Message from '@/models/message';
 import User from '@/models/user';
 import { assertMember, assertAdmin } from '@/services/membershipService';
 import { sanitizeText } from '@/helpers/sanitize';
@@ -114,7 +115,7 @@ const conversationService = {
   ) => {
     try {
       const memberships = await ConversationMember.find({ userId }).select(
-        'conversationId isArchived mutedUntil',
+        'conversationId isArchived mutedUntil lastReadMessageId',
       );
       const conversationIds = memberships.map((m) => m.conversationId);
       const settingByConversationId = new Map(
@@ -122,6 +123,9 @@ const conversationService = {
           String(m.conversationId),
           { isArchived: m.isArchived, mutedUntil: m.mutedUntil },
         ]),
+      );
+      const lastReadMessageIdByConversationId = new Map(
+        memberships.map((m) => [String(m.conversationId), m.lastReadMessageId]),
       );
 
       const filter: any = { _id: { $in: conversationIds } };
@@ -154,13 +158,42 @@ const conversationService = {
         otherMembers.map((m) => [String(m.conversationId), m.userId]),
       );
 
-      const enrichedItems = items.map((conversation) => ({
+      const lastMessageIds = items
+        .map((c) => c.lastMessageId)
+        .filter((id): id is NonNullable<typeof id> => Boolean(id));
+      const lastMessages = lastMessageIds.length
+        ? await Message.find({ _id: { $in: lastMessageIds } })
+            .select('_id content type senderId isDeleted createdAt')
+            .populate({ path: 'senderId', select: '_id username' })
+        : [];
+      const lastMessageById = new Map(lastMessages.map((m) => [String(m._id), m]));
+
+      const unreadCounts = await Promise.all(
+        items.map((conversation) => {
+          const lastReadMessageId = lastReadMessageIdByConversationId.get(String(conversation._id));
+          const unreadFilter: any = {
+            conversationId: conversation._id,
+            isDeleted: false,
+            senderId: { $ne: userId },
+          };
+          if (lastReadMessageId) {
+            unreadFilter._id = { $gt: lastReadMessageId };
+          }
+          return Message.countDocuments(unreadFilter);
+        }),
+      );
+
+      const enrichedItems = items.map((conversation, index) => ({
         ...conversation.toObject(),
         memberSetting: settingByConversationId.get(String(conversation._id)) || null,
         otherMember:
           conversation.type === 'private'
             ? otherMemberByConversationId.get(String(conversation._id)) || null
             : null,
+        lastMessage: conversation.lastMessageId
+          ? lastMessageById.get(String(conversation.lastMessageId)) || null
+          : null,
+        unreadCount: unreadCounts[index],
       }));
 
       const totalPages = Math.ceil(total / pageSize);

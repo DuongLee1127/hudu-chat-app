@@ -185,6 +185,7 @@ const Sidebar = ({
           <ConversationsList
             selectedConversationId={selectedConversationId}
             onSelect={onSelectConversation}
+            currentUserId={currentUser?._id}
           />
         )}
 
