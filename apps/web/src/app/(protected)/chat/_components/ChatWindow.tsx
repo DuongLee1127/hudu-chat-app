@@ -25,12 +25,17 @@ import {
   PaperClipOutlined,
   FileOutlined,
   CloseCircleFilled,
+  PhoneOutlined,
+  VideoCameraOutlined,
 } from '@ant-design/icons';
 import { useConversationDetail } from '@/hook/useConversations';
 import type { Message, MessageAttachment, MessageType } from '@/types/message';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useSocketContext } from '@/providers/SocketProvider';
 import { useChatStore } from '@/store/useChatStore';
+import { useCallStore } from '@/store/useCallStore';
+import { useCallContext } from '@/providers/CallProvider';
+import { useActiveCall } from '@/hook/useCalls';
 import { attachmentService } from '@/services/attachment.service';
 import { msg } from '@/lib/notify';
 import GroupSettingsModal from './GroupSettingsModal';
@@ -187,6 +192,23 @@ const ChatWindow = ({
   const displayName = isGroup ? conversation?.name || 'Nhóm chat' : otherMember?.username;
   const avatarUrl = isGroup ? conversation?.avatar : otherMember?.avatar;
   const canBlock = !isGroup && !!otherMember;
+
+  const { startCall, joinOngoingCall } = useCallContext();
+  const callPhase = useCallStore((s) => s.phase);
+  const canStartCall = callPhase === 'idle';
+  const { data: activeCallData } = useActiveCall(conversation?._id);
+  const activeCall = activeCallData?.data?.call;
+  const isInActiveCall = !!activeCall?.participants.some(
+    (p) => p.userId._id === currentUserId && p.status === 'accepted',
+  );
+  const [joiningCall, setJoiningCall] = useState(false);
+
+  const handleJoinActiveCall = async () => {
+    if (!conversation?._id) return;
+    setJoiningCall(true);
+    await joinOngoingCall(conversation._id);
+    setJoiningCall(false);
+  };
 
   useEffect(() => {
     if (messagesLoading || isLoading) return;
@@ -378,6 +400,18 @@ const ChatWindow = ({
             )}
           </div>
         </div>
+        <Button
+          type="text"
+          icon={<PhoneOutlined />}
+          disabled={!canStartCall}
+          onClick={() => conversation && startCall(conversation._id, 'audio')}
+        />
+        <Button
+          type="text"
+          icon={<VideoCameraOutlined />}
+          disabled={!canStartCall}
+          onClick={() => conversation && startCall(conversation._id, 'video')}
+        />
         {canBlock && (
           <Dropdown
             menu={{
@@ -425,6 +459,21 @@ const ChatWindow = ({
         />
       )}
 
+      {activeCall && !isInActiveCall && callPhase === 'idle' && (
+        <Alert
+          type="info"
+          showIcon
+          banner
+          icon={activeCall.type === 'video' ? <VideoCameraOutlined /> : <PhoneOutlined />}
+          title={isGroup ? 'Cuộc gọi nhóm đang diễn ra' : 'Cuộc gọi đang diễn ra'}
+          action={
+            <Button size="small" type="primary" loading={joiningCall} onClick={handleJoinActiveCall}>
+              Tham gia
+            </Button>
+          }
+        />
+      )}
+
       <div
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
@@ -469,6 +518,22 @@ const ChatWindow = ({
                       </Text>
                     </div>
                   )}
+                  {msg.type === 'system' ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
+                      <Text
+                        type="secondary"
+                        style={{
+                          fontSize: 12,
+                          background: '#e8e9f5',
+                          padding: '4px 12px',
+                          borderRadius: 12,
+                          textAlign: 'center',
+                        }}
+                      >
+                        {msg.content}
+                      </Text>
+                    </div>
+                  ) : (
                   <div
                     style={{
                       display: 'flex',
@@ -546,6 +611,7 @@ const ChatWindow = ({
                       )}
                     </Text>
                   </div>
+                  )}
                 </div>
               );
             })}

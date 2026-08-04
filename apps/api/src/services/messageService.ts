@@ -128,6 +128,27 @@ const messageService = {
     }
   },
 
+  createSystemMessage: async (conversationId: string, senderId: string, content: string) => {
+    try {
+      const message = await Message.create({
+        conversationId,
+        senderId,
+        content,
+        type: 'system',
+        attachmentIds: [],
+      });
+
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessageId: message._id,
+        lastMessageAt: message.createdAt,
+      });
+
+      return populateMessage(Message.findById(message._id)).exec();
+    } catch (error) {
+      throw error;
+    }
+  },
+
   editMessage: async (userId: string, messageId: string, content: string) => {
     try {
       const message = await Message.findById(messageId);

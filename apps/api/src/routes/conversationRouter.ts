@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import conversationController from '@/controllers/conversationController';
 import messageController from '@/controllers/messageController';
+import callController from '@/controllers/callController';
 import { authMiddleware } from '@/middlewares/authMiddleware';
 import { sendMessageRateLimiter } from '@/middlewares/rateLimitMiddleware';
 
@@ -446,6 +447,31 @@ router.patch('/:id/archive', authMiddleware, conversationController.archiveConve
  *       403:
  *         description: Not a member of this conversation
  */
+
+/**
+ * @swagger
+ * /api/conversations/{id}/active-call:
+ *   get:
+ *     summary: Get the currently active call (ringing/ongoing) in a conversation, if any
+ *     tags: [Calls]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Active call returned (or null)
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Not a member of this conversation
+ */
+
+router.get('/:id/active-call', authMiddleware, callController.getActiveCall);
 
 router.get('/:id/messages', authMiddleware, messageController.listMessages);
 router.post(

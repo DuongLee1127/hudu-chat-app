@@ -9,6 +9,8 @@ import { registerRoomHandlers } from '@/socket/handlers/roomHandler';
 import { registerMessageHandlers } from '@/socket/handlers/messageHandler';
 import { registerTypingHandlers } from '@/socket/handlers/typingHandler';
 import { registerReadHandlers } from '@/socket/handlers/readHandler';
+import { registerCallHandlers } from '@/socket/handlers/callHandler';
+import callService from '@/services/callService';
 
 let io: Server | null = null;
 
@@ -27,10 +29,14 @@ export const initSocket = (server: HttpServer) => {
     registerMessageHandlers(io as Server, socket);
     registerTypingHandlers(socket);
     registerReadHandlers(io as Server, socket);
+    registerCallHandlers(io as Server, socket);
 
     socket.on('disconnect', () => {
       handleDisconnectPresence(io as Server, socket).catch((err) => {
         console.error('Error handling disconnect presence:', err);
+      });
+      callService.handleUserDisconnect(io as Server, socket).catch((err) => {
+        console.error('Error handling disconnect call cleanup:', err);
       });
     });
 
