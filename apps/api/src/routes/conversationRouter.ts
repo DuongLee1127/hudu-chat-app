@@ -306,10 +306,81 @@ const router = Router();
  *         description: Unauthorized
  */
 
+/**
+ * @swagger
+ * /api/conversations/invite/{code}:
+ *   get:
+ *     summary: Preview a group conversation by its invite code (no membership required)
+ *     tags: [Conversations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Invite preview returned
+ *       404:
+ *         description: Invalid invite code
+ */
+
+/**
+ * @swagger
+ * /api/conversations/join/{code}:
+ *   post:
+ *     summary: Join a group conversation using an invite code
+ *     tags: [Conversations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Joined conversation
+ *       400:
+ *         description: Invalid invite code
+ *       401:
+ *         description: Unauthorized
+ */
+
+/**
+ * @swagger
+ * /api/conversations/{id}/invite-code:
+ *   post:
+ *     summary: Generate (or regenerate) the invite code for a group conversation (admin only)
+ *     tags: [Conversations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Invite code generated
+ *       400:
+ *         description: Bad request (not a group / not admin)
+ *       401:
+ *         description: Unauthorized
+ */
+
+router.get('/invite/:code', authMiddleware, conversationController.getConversationByInviteCode);
+router.post('/join/:code', authMiddleware, conversationController.joinByInviteCode);
+
 router.post('/direct', authMiddleware, conversationController.createDirectConversation);
 router.post('/group', authMiddleware, conversationController.createGroupConversation);
 router.get('/', authMiddleware, conversationController.listMyConversations);
 router.get('/:id', authMiddleware, conversationController.getConversationDetail);
+router.post('/:id/invite-code', authMiddleware, conversationController.generateInviteCode);
 router.patch('/:id', authMiddleware, conversationController.updateConversation);
 router.post('/:id/members', authMiddleware, conversationController.addMembers);
 router.delete('/:id/members/:userId', authMiddleware, conversationController.removeMember);
@@ -472,6 +543,45 @@ router.patch('/:id/archive', authMiddleware, conversationController.archiveConve
  */
 
 router.get('/:id/active-call', authMiddleware, callController.getActiveCall);
+
+/**
+ * @swagger
+ * /api/conversations/{id}/attachments:
+ *   get:
+ *     summary: List media/file attachments shared in a conversation (cursor pagination)
+ *     tags: [Conversations]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [image, video, file]
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *     responses:
+ *       200:
+ *         description: List of attachments with nextCursor
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Not a member of this conversation
+ */
+
+router.get('/:id/attachments', authMiddleware, conversationController.listAttachments);
 
 router.get('/:id/messages', authMiddleware, messageController.listMessages);
 router.post(

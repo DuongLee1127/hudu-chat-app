@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { App, Avatar, Button, Empty, Flex, Input, Modal, Skeleton, Tag, Typography } from 'antd';
-import { SearchOutlined, UserDeleteOutlined, UserAddOutlined } from '@ant-design/icons';
+import {
+  SearchOutlined,
+  UserDeleteOutlined,
+  UserAddOutlined,
+  CopyOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
+import { QRCodeSVG } from 'qrcode.react';
 import type { AxiosError } from 'axios';
 
 import { notify } from '@/lib/notify';
@@ -10,7 +17,12 @@ import { colorForId, initialOf } from '@/lib/avatar';
 import { useFriends } from '@/hook/useFriend';
 import { useDebouncedValue } from '@/hook/useDebouncedValue';
 import { useIsMobile } from '@/hook/useMediaQuery';
-import { useUpdateConversation, useAddMembers, useRemoveMember } from '@/hook/useConversations';
+import {
+  useUpdateConversation,
+  useAddMembers,
+  useRemoveMember,
+  useGenerateInviteCode,
+} from '@/hook/useConversations';
 import type { ConversationMember } from '@/types/conversation';
 import type { ApiResponse } from '@/types/api';
 
@@ -21,6 +33,7 @@ interface GroupSettingsModalProps {
   onClose: () => void;
   conversationId: string;
   conversationName?: string;
+  inviteCode?: string;
   members: ConversationMember[];
   currentUserId?: string;
 }
@@ -30,6 +43,7 @@ const GroupSettingsModal = ({
   onClose,
   conversationId,
   conversationName,
+  inviteCode,
   members,
   currentUserId,
 }: GroupSettingsModalProps) => {
@@ -59,6 +73,10 @@ const GroupSettingsModal = ({
   const updateMutation = useUpdateConversation(conversationId);
   const addMembersMutation = useAddMembers(conversationId);
   const removeMemberMutation = useRemoveMember(conversationId);
+  const generateInviteCodeMutation = useGenerateInviteCode(conversationId);
+
+  const inviteLink =
+    inviteCode && typeof window !== 'undefined' ? `${window.location.origin}/join/${inviteCode}` : '';
 
   const handleApiError = (err: unknown, fallback: string) => {
     const axiosErr = err as AxiosError<ApiResponse<null>>;
@@ -85,6 +103,19 @@ const GroupSettingsModal = ({
       },
       onError: (err) => handleApiError(err, 'Thêm thành viên thất bại!'),
     });
+  };
+
+  const handleGenerateInviteCode = () => {
+    generateInviteCodeMutation.mutate(undefined, {
+      onSuccess: () => notify.success('Đã tạo mã mời mới!'),
+      onError: (err) => handleApiError(err, 'Tạo mã mời thất bại!'),
+    });
+  };
+
+  const handleCopyInviteLink = async () => {
+    if (!inviteLink) return;
+    await navigator.clipboard.writeText(inviteLink);
+    notify.success('Đã sao chép liên kết mời!');
   };
 
   const handleRemoveMember = (member: ConversationMember) => {
@@ -173,6 +204,39 @@ const GroupSettingsModal = ({
           ))}
         </div>
       </div>
+
+      {isAdmin && (
+        <div style={{ marginBottom: 20 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Mời qua QR / liên kết
+          </Text>
+          <Flex vertical align="center" gap={10} style={{ marginTop: 8 }}>
+            {inviteCode ? (
+              <>
+                <div style={{ padding: 8, background: '#fff', borderRadius: 8 }}>
+                  <QRCodeSVG value={inviteLink} size={160} />
+                </div>
+                <Flex gap={8} style={{ width: '100%' }}>
+                  <Input value={inviteLink} readOnly />
+                  <Button icon={<CopyOutlined />} onClick={handleCopyInviteLink} />
+                  <Button
+                    icon={<ReloadOutlined />}
+                    loading={generateInviteCodeMutation.isPending}
+                    onClick={handleGenerateInviteCode}
+                  />
+                </Flex>
+              </>
+            ) : (
+              <Button
+                loading={generateInviteCodeMutation.isPending}
+                onClick={handleGenerateInviteCode}
+              >
+                Tạo mã mời
+              </Button>
+            )}
+          </Flex>
+        </div>
+      )}
 
       {isAdmin && (
         <div>

@@ -21,6 +21,7 @@ import notificationRouter from '@/routes/notificationRouter';
 import searchRouter from '@/routes/searchRouter';
 import reportRouter from '@/routes/reportRouter';
 import adminRouter from '@/routes/adminRouter';
+import pushRouter from '@/routes/pushRouter';
 
 const PORT = process.env.API_PORT || process.env.PORT || 5000;
 
@@ -52,6 +53,7 @@ app.use('/api/notifications', notificationRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/reports', reportRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/push', pushRouter);
 
 const server = http.createServer(app);
 initSocket(server);

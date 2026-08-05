@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Avatar,
   Badge,
@@ -24,6 +25,7 @@ import {
   UsergroupAddOutlined,
   UserAddOutlined,
   TeamOutlined,
+  DashboardOutlined,
 } from '@ant-design/icons';
 import type { User } from '@/types/user';
 import { colorForId, initialOf } from '@/lib/avatar';
@@ -66,6 +68,7 @@ const Sidebar = ({
   onLogout,
   logoutLoading,
 }: SidebarProps) => {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'conversations' | 'contacts'>('conversations');
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
@@ -73,6 +76,7 @@ const Sidebar = ({
 
   const { data: incomingData } = useIncomingFriendRequests();
   const incomingCount = incomingData?.data.length ?? 0;
+  const isAdmin = currentUser?.role === 'admin';
 
   const menuItems = [
     { key: 'profile', icon: <SettingOutlined />, label: 'Hồ sơ cá nhân' },
@@ -86,6 +90,9 @@ const Sidebar = ({
       ),
     },
     { key: 'blocked', icon: <StopOutlined />, label: 'Người dùng đã chặn' },
+    ...(isAdmin
+      ? [{ key: 'admin', icon: <DashboardOutlined />, label: 'Quản trị hệ thống' }]
+      : []),
     { type: 'divider' as const },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
   ];
@@ -94,6 +101,7 @@ const Sidebar = ({
     if (key === 'profile') onOpenProfile();
     if (key === 'friendRequests') setFriendRequestsOpen(true);
     if (key === 'blocked') onOpenBlocked();
+    if (key === 'admin') router.push('/admin');
     if (key === 'logout') onLogout();
   };
 

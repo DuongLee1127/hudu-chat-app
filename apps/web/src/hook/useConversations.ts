@@ -108,3 +108,32 @@ export function useArchiveConversation() {
     },
   });
 }
+
+export function useGenerateInviteCode(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => conversationService.generateInviteCode(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', id] });
+    },
+  });
+}
+
+export function useInvitePreview(code: string) {
+  return useQuery({
+    queryKey: ['invite-preview', code],
+    queryFn: () => conversationService.getConversationByInviteCode(code),
+    enabled: !!code,
+    retry: false,
+  });
+}
+
+export function useJoinByInviteCode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => conversationService.joinByInviteCode(code),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}

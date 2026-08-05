@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { Avatar, Button, Drawer, Form, Input, Tabs } from 'antd';
+import { useEffect, useState } from 'react';
+import { Avatar, Button, Drawer, Form, Input, Switch, Tabs, Typography } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import type { AxiosError } from 'axios';
 
@@ -9,8 +9,16 @@ import { notify } from '@/lib/notify';
 import { useUpdateProfile, useChangePassword } from '@/hook/useUser';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useIsMobile } from '@/hook/useMediaQuery';
+import {
+  isPushSupported,
+  getCurrentPushSubscription,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from '@/lib/push';
 import type { User, UpdateProfilePayload, ChangePasswordPayload } from '@/types/user';
 import type { ApiResponse } from '@/types/api';
+
+const { Text } = Typography;
 
 const { TextArea } = Input;
 
@@ -28,6 +36,9 @@ const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
   const updateProfileMutation = useUpdateProfile();
   const changePasswordMutation = useChangePassword();
 
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
   useEffect(() => {
     if (currentUser && open) {
       profileForm.setFieldsValue({
@@ -37,6 +48,29 @@ const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
       });
     }
   }, [currentUser, open, profileForm]);
+
+  useEffect(() => {
+    if (!open) return;
+    getCurrentPushSubscription().then((subscription) => setPushEnabled(!!subscription));
+  }, [open]);
+
+  const handleTogglePush = async (checked: boolean) => {
+    setPushLoading(true);
+    try {
+      if (checked) {
+        await subscribeToPush();
+        notify.success('Đã bật thông báo đẩy!');
+      } else {
+        await unsubscribeFromPush();
+        notify.success('Đã tắt thông báo đẩy!');
+      }
+      setPushEnabled(checked);
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : 'Không thể thay đổi thông báo đẩy!');
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   const handleUpdateProfile = (values: UpdateProfilePayload) => {
     updateProfileMutation.mutate(values, {
@@ -170,6 +204,26 @@ const ProfileDrawer = ({ open, onClose, currentUser }: ProfileDrawerProps) => {
                   </Button>
                 </Form.Item>
               </Form>
+            ),
+          },
+          {
+            key: 'notifications',
+            label: 'Thông báo',
+            children: (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div>Thông báo đẩy</div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Nhận thông báo tin nhắn mới khi không mở ứng dụng
+                  </Text>
+                </div>
+                <Switch
+                  checked={pushEnabled}
+                  loading={pushLoading}
+                  disabled={!isPushSupported()}
+                  onChange={handleTogglePush}
+                />
+              </div>
             ),
           },
         ]}

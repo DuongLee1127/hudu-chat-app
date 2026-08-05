@@ -5,6 +5,8 @@ export interface User {
   avatar?: string | null;
   status: 'online' | 'offline' | 'away';
   bio?: string;
+  role?: 'user' | 'admin';
+  accountStatus?: 'active' | 'locked';
   createdAt?: string;
   updatedAt?: string;
 }

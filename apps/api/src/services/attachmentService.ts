@@ -182,6 +182,63 @@ const attachmentService = {
     return attachmentService.buildThumbnailUrl(attachment);
   },
 
+  listByConversation: async (
+    userId: string,
+    conversationId: string,
+    options: { type?: 'image' | 'video' | 'file'; cursor?: string; limit?: number } = {},
+  ) => {
+    try {
+      await getMembership(conversationId, userId).then((membership) => {
+        if (!membership) {
+          throw new Error('Bạn không phải thành viên của hội thoại này!');
+        }
+      });
+
+      const limit = Math.min(Math.max(options.limit || 30, 1), 100);
+
+      const match: Record<string, unknown> = {
+        'message.conversationId': new mongoose.Types.ObjectId(conversationId),
+        'message.isDeleted': false,
+      };
+      if (options.type === 'image') {
+        match.resourceType = 'image';
+      } else if (options.type === 'video') {
+        match.mimeType = { $regex: '^video/' };
+      } else if (options.type === 'file') {
+        match.resourceType = 'raw';
+        match.mimeType = { $not: { $regex: '^video/' } };
+      }
+      if (options.cursor && mongoose.isValidObjectId(options.cursor)) {
+        match._id = { $lt: new mongoose.Types.ObjectId(options.cursor) };
+      }
+
+      const items = await Attachment.aggregate([
+        { $match: { messageId: { $ne: null } } },
+        {
+          $lookup: {
+            from: 'messages',
+            localField: 'messageId',
+            foreignField: '_id',
+            as: 'message',
+          },
+        },
+        { $unwind: '$message' },
+        { $match: match },
+        { $sort: { _id: -1 } },
+        { $limit: limit },
+      ]);
+
+      const nextCursor = items.length === limit ? String(items[items.length - 1]._id) : null;
+
+      return {
+        items: items.map((item) => Attachment.hydrate(item).toJSON()),
+        nextCursor,
+      };
+    } catch (error) {
+      throw error;
+    }
+  },
+
   deleteAttachment: async (userId: string, id: string) => {
     try {
       const attachment = await Attachment.findById(id);

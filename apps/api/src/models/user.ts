@@ -1,5 +1,10 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface IPushSubscription {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
 export interface IUser extends Document {
   username: string;
   email: string;
@@ -11,6 +16,7 @@ export interface IUser extends Document {
   accountStatus: 'active' | 'locked';
   lockReason?: string | null;
   lockedAt?: Date | null;
+  pushSubscriptions: IPushSubscription[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,6 +78,19 @@ const UserSchema: Schema = new Schema(
     lockedAt: {
       type: Date,
       default: null,
+    },
+    pushSubscriptions: {
+      type: [
+        {
+          endpoint: { type: String, required: true },
+          keys: {
+            p256dh: { type: String, required: true },
+            auth: { type: String, required: true },
+          },
+        },
+      ],
+      default: [],
+      select: false,
     },
   },
   {

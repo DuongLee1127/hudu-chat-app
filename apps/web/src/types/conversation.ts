@@ -21,8 +21,16 @@ export interface Conversation {
   lastMessageId?: string;
   lastMessageAt: string;
   lastMessage?: ConversationLastMessage | null;
+  inviteCode?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InvitePreview {
+  _id: string;
+  name?: string;
+  avatar?: string;
+  memberCount: number;
 }
 
 export interface MemberSetting {

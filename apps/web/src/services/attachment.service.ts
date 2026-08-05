@@ -1,8 +1,14 @@
 import axiosClient from '@/api/axiosClient';
-import type { MessageAttachment } from '@/types/message';
+import type { MessageAttachment, ListAttachmentsParams, ListAttachmentsResult } from '@/types/message';
 import type { ApiResponse } from '@/types/api';
 
 export const attachmentService = {
+  listByConversation: async (conversationId: string, params: ListAttachmentsParams) => {
+    return axiosClient.get<never, ApiResponse<ListAttachmentsResult>>(
+      `/conversations/${conversationId}/attachments`,
+      { params },
+    );
+  },
   uploadFiles: async (files: File[]) => {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));

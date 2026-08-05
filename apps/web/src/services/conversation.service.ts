@@ -7,6 +7,7 @@ import type {
   CreateGroupPayload,
   UpdateConversationPayload,
   ListConversationsParams,
+  InvitePreview,
 } from '@/types/conversation';
 import type { ApiResponse, PagedResult } from '@/types/api';
 
@@ -57,6 +58,17 @@ export const conversationService = {
     return axiosClient.patch<never, ApiResponse<{ memberSetting: ConversationMember }>>(
       `/conversations/${id}/archive`,
       { isArchived },
+    );
+  },
+  generateInviteCode: async (id: string) => {
+    return axiosClient.post<never, ApiResponse<Conversation>>(`/conversations/${id}/invite-code`);
+  },
+  getConversationByInviteCode: async (code: string) => {
+    return axiosClient.get<never, ApiResponse<InvitePreview>>(`/conversations/invite/${code}`);
+  },
+  joinByInviteCode: async (code: string) => {
+    return axiosClient.post<never, ApiResponse<ConversationDetailResult>>(
+      `/conversations/join/${code}`,
     );
   },
 };

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import conversationService from '@/services/conversationService';
+import attachmentService from '@/services/attachmentService';
 import { sendSuccess, sendError } from '@/helpers';
 
 const conversationController = {
@@ -228,6 +229,85 @@ const conversationController = {
       return sendSuccess(res, { memberSetting: result }, 'Update archive setting success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  generateInviteCode: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Conversation ID is required', 400);
+      }
+
+      const result = await conversationService.generateInviteCode(String(userId), String(id));
+      return sendSuccess(res, result, 'Generate invite code success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  getConversationByInviteCode: async (req: Request, res: Response) => {
+    try {
+      const { code } = req.params;
+      if (!code) {
+        return sendError(res, 'Invite code is required', 400);
+      }
+
+      const result = await conversationService.getConversationByInviteCode(String(code));
+      return sendSuccess(res, result, 'Get invite preview success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 404);
+    }
+  },
+
+  joinByInviteCode: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { code } = req.params;
+      if (!code) {
+        return sendError(res, 'Invite code is required', 400);
+      }
+
+      const result = await conversationService.joinByInviteCode(String(userId), String(code));
+      return sendSuccess(res, result, 'Join conversation success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  listAttachments: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Conversation ID is required', 400);
+      }
+
+      const type = req.query.type as 'image' | 'video' | 'file' | undefined;
+      const cursor = req.query.cursor ? String(req.query.cursor) : undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+
+      const result = await attachmentService.listByConversation(String(userId), String(id), {
+        type,
+        cursor,
+        limit,
+      });
+      return sendSuccess(res, result, 'Get conversation attachments success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 403);
     }
   },
 };

@@ -1,8 +1,9 @@
+import crypto from 'crypto';
 import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
 import Message from '@/models/message';
 import User from '@/models/user';
-import { assertMember, assertAdmin } from '@/services/membershipService';
+import { assertMember, assertAdmin, getMembership } from '@/services/membershipService';
 import { sanitizeText } from '@/helpers/sanitize';
 
 const getMembersWithUser = async (conversationId: string) => {
@@ -338,6 +339,72 @@ const conversationService = {
       membership.isArchived = isArchived;
       await membership.save();
       return membership;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  generateInviteCode: async (userId: string, conversationId: string) => {
+    try {
+      const conversation = await Conversation.findById(conversationId);
+      if (!conversation) {
+        throw new Error('Không tìm thấy hội thoại!');
+      }
+      if (conversation.type !== 'group') {
+        throw new Error('Chỉ nhóm chat mới có thể tạo mã mời!');
+      }
+
+      await assertAdmin(conversationId, userId);
+
+      conversation.inviteCode = crypto.randomBytes(9).toString('base64url');
+      await conversation.save();
+
+      return conversation;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getConversationByInviteCode: async (inviteCode: string) => {
+    try {
+      const conversation = await Conversation.findOne({ inviteCode });
+      if (!conversation) {
+        throw new Error('Mã mời không hợp lệ hoặc đã hết hạn!');
+      }
+
+      const memberCount = await ConversationMember.countDocuments({
+        conversationId: conversation._id,
+      });
+
+      return {
+        _id: conversation._id,
+        name: conversation.name,
+        avatar: conversation.avatar,
+        memberCount,
+      };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  joinByInviteCode: async (userId: string, inviteCode: string) => {
+    try {
+      const conversation = await Conversation.findOne({ inviteCode });
+      if (!conversation) {
+        throw new Error('Mã mời không hợp lệ hoặc đã hết hạn!');
+      }
+
+      const existingMembership = await getMembership(String(conversation._id), userId);
+      if (!existingMembership) {
+        await ConversationMember.create({
+          conversationId: conversation._id,
+          userId,
+          role: 'member',
+        });
+      }
+
+      const members = await getMembersWithUser(String(conversation._id));
+      return { conversation, members };
     } catch (error) {
       throw error;
     }

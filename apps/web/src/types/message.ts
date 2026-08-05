@@ -61,3 +61,16 @@ export interface SendMessagePayload {
   replyToMessageId?: string;
   tempId?: string;
 }
+
+export type AttachmentMediaType = 'image' | 'video' | 'file';
+
+export interface ListAttachmentsParams {
+  type?: AttachmentMediaType;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ListAttachmentsResult {
+  items: MessageAttachment[];
+  nextCursor: string | null;
+}

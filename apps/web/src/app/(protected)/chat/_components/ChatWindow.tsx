@@ -27,6 +27,7 @@ import {
   CloseCircleFilled,
   PhoneOutlined,
   VideoCameraOutlined,
+  PictureOutlined,
 } from '@ant-design/icons';
 import { useConversationDetail } from '@/hook/useConversations';
 import type { Message, MessageAttachment, MessageType } from '@/types/message';
@@ -39,6 +40,7 @@ import { useActiveCall } from '@/hook/useCalls';
 import { attachmentService } from '@/services/attachment.service';
 import { msg } from '@/lib/notify';
 import GroupSettingsModal from './GroupSettingsModal';
+import MediaCenterDrawer from './MediaCenterDrawer';
 
 const TYPING_STOP_DELAY_MS = 2500;
 
@@ -161,6 +163,7 @@ const ChatWindow = ({
 }: ChatWindowProps) => {
   const [draft, setDraft] = useState('');
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
+  const [mediaCenterOpen, setMediaCenterOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -411,6 +414,11 @@ const ChatWindow = ({
           icon={<VideoCameraOutlined />}
           disabled={!canStartCall}
           onClick={() => conversation && startCall(conversation._id, 'video')}
+        />
+        <Button
+          type="text"
+          icon={<PictureOutlined />}
+          onClick={() => setMediaCenterOpen(true)}
         />
         {canBlock && (
           <Dropdown
@@ -712,10 +720,17 @@ const ChatWindow = ({
           onClose={() => setGroupSettingsOpen(false)}
           conversationId={conversation._id}
           conversationName={conversation.name}
+          inviteCode={conversation.inviteCode}
           members={members}
           currentUserId={currentUserId}
         />
       )}
+
+      <MediaCenterDrawer
+        open={mediaCenterOpen}
+        onClose={() => setMediaCenterOpen(false)}
+        conversationId={conversation._id}
+      />
     </div>
   );
 };
