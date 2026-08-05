@@ -6,8 +6,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getSocket } from '@/lib/socket';
 import { useGetMe } from '@/hook/useAuth';
 import { useChatStore } from '@/store/useChatStore';
+import { notify } from '@/lib/notify';
 import type { Message, ListMessagesResult, SendMessagePayload } from '@/types/message';
 import type { ConversationListItem } from '@/types/conversation';
+import type { NotificationItem } from '@/types/notification';
 import type { ApiResponse, PagedResult } from '@/types/api';
 
 interface SocketContextValue {
@@ -164,6 +166,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
     };
 
+    const onNotificationNew = ({ notification }: { notification: NotificationItem }) => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      notify.info(notification.content);
+    };
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
@@ -178,6 +185,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     socket.on('friend_request:new', onFriendRequestChanged);
     socket.on('friend_request:accepted', onFriendRequestChanged);
     socket.on('friend_request:removed', onFriendRequestChanged);
+    socket.on('notification:new', onNotificationNew);
 
     return () => {
       socket.off('connect', onConnect);
@@ -194,6 +202,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socket.off('friend_request:new', onFriendRequestChanged);
       socket.off('friend_request:accepted', onFriendRequestChanged);
       socket.off('friend_request:removed', onFriendRequestChanged);
+      socket.off('notification:new', onNotificationNew);
       socket.disconnect();
     };
   }, [

@@ -34,6 +34,7 @@ import ConversationsList from './ConversationsList';
 import CreateGroupModal from './CreateGroupModal';
 import AddFriendModal from './AddFriendModal';
 import FriendRequestsModal from './FriendRequestsModal';
+import NotificationBell from './NotificationBell';
 
 const { Text, Title } = Typography;
 
@@ -137,6 +138,7 @@ const Sidebar = ({
             ● Đang hoạt động
           </Text>
         </div>
+        <NotificationBell />
         <Dropdown
           menu={{ items: menuItems, onClick: ({ key }) => handleMenuClick(key) }}
           trigger={['click']}
