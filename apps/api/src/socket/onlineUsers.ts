@@ -1,23 +1,20 @@
-const userSockets = new Map<string, Set<string>>();
+import { redisClient } from '@/config/redis';
 
-export const addUserSocket = (userId: string, socketId: string) => {
-  const sockets = userSockets.get(userId) ?? new Set<string>();
-  const wasOffline = sockets.size === 0;
-  sockets.add(socketId);
-  userSockets.set(userId, sockets);
-  return { wasOffline };
+const onlineKey = (userId: string) => `online:${userId}`;
+
+export const addUserSocket = async (userId: string, socketId: string) => {
+  const before = await redisClient.scard(onlineKey(userId));
+  await redisClient.sadd(onlineKey(userId), socketId);
+  return { wasOffline: before === 0 };
 };
 
-export const removeUserSocket = (userId: string, socketId: string) => {
-  const sockets = userSockets.get(userId);
-  if (!sockets) return { isNowOffline: false };
-
-  sockets.delete(socketId);
-  if (sockets.size === 0) {
-    userSockets.delete(userId);
-    return { isNowOffline: true };
-  }
-  return { isNowOffline: false };
+export const removeUserSocket = async (userId: string, socketId: string) => {
+  await redisClient.srem(onlineKey(userId), socketId);
+  const remaining = await redisClient.scard(onlineKey(userId));
+  return { isNowOffline: remaining === 0 };
 };
 
-export const isUserOnline = (userId: string) => userSockets.has(userId);
+export const isUserOnline = async (userId: string) => {
+  const count = await redisClient.scard(onlineKey(userId));
+  return count > 0;
+};

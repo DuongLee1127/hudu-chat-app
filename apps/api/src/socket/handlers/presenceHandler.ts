@@ -19,7 +19,7 @@ export const handleConnectionPresence = async (io: Server, socket: Socket) => {
   const userId = String(socket.data.user.id);
   socket.join(`user:${userId}`);
 
-  const { wasOffline } = addUserSocket(userId, socket.id);
+  const { wasOffline } = await addUserSocket(userId, socket.id);
   if (wasOffline) {
     await User.findByIdAndUpdate(userId, { status: 'online' });
     const relatedUserIds = await getRelatedUserIds(userId);
@@ -31,7 +31,7 @@ export const handleConnectionPresence = async (io: Server, socket: Socket) => {
 
 export const handleDisconnectPresence = async (io: Server, socket: Socket) => {
   const userId = String(socket.data.user.id);
-  const { isNowOffline } = removeUserSocket(userId, socket.id);
+  const { isNowOffline } = await removeUserSocket(userId, socket.id);
 
   if (isNowOffline) {
     const lastSeenAt = new Date();

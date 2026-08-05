@@ -22,6 +22,10 @@ import searchRouter from '@/routes/searchRouter';
 import reportRouter from '@/routes/reportRouter';
 import adminRouter from '@/routes/adminRouter';
 import pushRouter from '@/routes/pushRouter';
+import storyRouter from '@/routes/storyRouter';
+import monitoringRouter from '@/routes/monitoringRouter';
+import { startPushWorker } from '@/workers/pushWorker';
+import { httpRequestsTotal } from '@/config/metrics';
 
 const PORT = process.env.API_PORT || process.env.PORT || 5000;
 
@@ -37,6 +41,13 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(morgan('dev'));
+
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    httpRequestsTotal.inc({ method: req.method, route: req.path, status: res.statusCode });
+  });
+  next();
+});
 
 // swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -54,9 +65,12 @@ app.use('/api/search', searchRouter);
 app.use('/api/reports', reportRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/push', pushRouter);
+app.use('/api/stories', storyRouter);
+app.use('/api', monitoringRouter);
 
 const server = http.createServer(app);
 initSocket(server);
+startPushWorker();
 
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

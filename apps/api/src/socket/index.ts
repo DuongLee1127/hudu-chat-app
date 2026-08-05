@@ -1,5 +1,7 @@
 import type { Server as HttpServer } from 'http';
 import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { redisClient, attachErrorHandler } from '@/config/redis';
 import { socketAuthMiddleware } from '@/socket/middlewares/socketAuth';
 import {
   handleConnectionPresence,
@@ -21,6 +23,10 @@ export const initSocket = (server: HttpServer) => {
       credentials: true,
     },
   });
+
+  const pubClient = attachErrorHandler(redisClient.duplicate(), 'socket.io pub client');
+  const subClient = attachErrorHandler(redisClient.duplicate(), 'socket.io sub client');
+  io.adapter(createAdapter(pubClient, subClient));
 
   io.use(socketAuthMiddleware);
 

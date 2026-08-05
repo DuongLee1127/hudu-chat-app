@@ -2,6 +2,9 @@ import User from '@/models/user';
 import Message from '@/models/message';
 import Conversation from '@/models/conversation';
 import { sanitizeText } from '@/helpers/sanitize';
+import { getOrSetCache } from '@/helpers/cache';
+
+const METRICS_CACHE_TTL_SECONDS = 30;
 
 const adminService = {
   listUsers: async (options: {
@@ -71,32 +74,36 @@ const adminService = {
 
   getMetrics: async (from?: Date, to?: Date) => {
     try {
-      const range: any = {};
-      if (from) range.$gte = from;
-      if (to) range.$lte = to;
-      const createdAtFilter = Object.keys(range).length ? { createdAt: range } : {};
+      const cacheKey = `admin:metrics:${from?.toISOString() || ''}:${to?.toISOString() || ''}`;
 
-      const [
-        totalUsers,
-        newUsers,
-        totalMessages,
-        newMessages,
-        totalConversations,
-        newConversations,
-      ] = await Promise.all([
-        User.countDocuments({}),
-        User.countDocuments(createdAtFilter),
-        Message.countDocuments({}),
-        Message.countDocuments(createdAtFilter),
-        Conversation.countDocuments({}),
-        Conversation.countDocuments(createdAtFilter),
-      ]);
+      return await getOrSetCache(cacheKey, METRICS_CACHE_TTL_SECONDS, async () => {
+        const range: any = {};
+        if (from) range.$gte = from;
+        if (to) range.$lte = to;
+        const createdAtFilter = Object.keys(range).length ? { createdAt: range } : {};
 
-      return {
-        users: { total: totalUsers, new: newUsers },
-        messages: { total: totalMessages, new: newMessages },
-        conversations: { total: totalConversations, new: newConversations },
-      };
+        const [
+          totalUsers,
+          newUsers,
+          totalMessages,
+          newMessages,
+          totalConversations,
+          newConversations,
+        ] = await Promise.all([
+          User.countDocuments({}),
+          User.countDocuments(createdAtFilter),
+          Message.countDocuments({}),
+          Message.countDocuments(createdAtFilter),
+          Conversation.countDocuments({}),
+          Conversation.countDocuments(createdAtFilter),
+        ]);
+
+        return {
+          users: { total: totalUsers, new: newUsers },
+          messages: { total: totalMessages, new: newMessages },
+          conversations: { total: totalConversations, new: newConversations },
+        };
+      });
     } catch (error) {
       throw error;
     }

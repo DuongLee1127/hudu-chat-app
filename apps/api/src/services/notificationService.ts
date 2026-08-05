@@ -3,7 +3,7 @@ import Notification from '@/models/notification';
 import ConversationMember from '@/models/conversation_member';
 import { logger } from '@/helpers/logger';
 import { isUserOnline } from '@/socket/onlineUsers';
-import pushService from '@/services/pushService';
+import { pushQueue } from '@/queues/pushQueue';
 
 const isUserInConversationRoom = (io: Server, conversationId: string, userId: string) => {
   const room = io.sockets.adapter.rooms.get(`conversation:${conversationId}`);
@@ -72,11 +72,14 @@ const notificationService = {
 
           io.to(`user:${recipientId}`).emit('notification:new', { notification });
 
-          if (!isUserOnline(recipientId)) {
-            await pushService.sendToUser(recipientId, {
-              title: senderName,
-              body: buildMessagePreview(message),
-              link: `/chat/${conversationId}`,
+          if (!(await isUserOnline(recipientId))) {
+            await pushQueue.add('send-push', {
+              userId: recipientId,
+              payload: {
+                title: senderName,
+                body: buildMessagePreview(message),
+                link: `/chat/${conversationId}`,
+              },
             });
           }
         }),

@@ -35,6 +35,7 @@ import CreateGroupModal from './CreateGroupModal';
 import AddFriendModal from './AddFriendModal';
 import FriendRequestsModal from './FriendRequestsModal';
 import NotificationBell from './NotificationBell';
+import StoryBar from './StoryBar';
 
 const { Text, Title } = Typography;
 
@@ -147,6 +148,8 @@ const Sidebar = ({
           <Button type="text" icon={<MoreOutlined />} loading={logoutLoading} />
         </Dropdown>
       </div>
+
+      <StoryBar currentUser={currentUser} />
 
       <Tabs
         activeKey={activeTab}

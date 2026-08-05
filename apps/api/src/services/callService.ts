@@ -301,7 +301,7 @@ const callService = {
   handleUserDisconnect: async (io: Server, socket: Socket) => {
     try {
       const userId = String(socket.data.user.id);
-      if (isUserOnline(userId)) return;
+      if (await isUserOnline(userId)) return;
 
       const calls = await Call.find({
         status: { $in: ACTIVE_STATUSES },
