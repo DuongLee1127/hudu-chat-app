@@ -175,6 +175,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ['stories', 'feed'] });
     };
 
+    const onNotificationReadBulk = () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    };
+
+    const onBlockStatusChanged = () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['users', 'blocked'] });
+    };
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
@@ -191,6 +200,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     socket.on('friend_request:removed', onFriendRequestChanged);
     socket.on('notification:new', onNotificationNew);
     socket.on('story:new', onStoryNew);
+    socket.on('user:blocked', onBlockStatusChanged);
+    socket.on('user:unblocked', onBlockStatusChanged);
+    socket.on('notification:read-bulk', onNotificationReadBulk);
 
     return () => {
       socket.off('connect', onConnect);
@@ -209,6 +221,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socket.off('friend_request:removed', onFriendRequestChanged);
       socket.off('notification:new', onNotificationNew);
       socket.off('story:new', onStoryNew);
+      socket.off('user:blocked', onBlockStatusChanged);
+      socket.off('user:unblocked', onBlockStatusChanged);
+      socket.off('notification:read-bulk', onNotificationReadBulk);
       socket.disconnect();
     };
   }, [

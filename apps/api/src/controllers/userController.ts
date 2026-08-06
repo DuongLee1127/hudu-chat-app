@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import userService from '@/services/userService';
 import { sendSuccess, sendError } from '@/helpers';
+import { getIO } from '@/socket';
 
 const userController = {
   updateMe: async (req: Request, res: Response) => {
@@ -72,6 +73,7 @@ const userController = {
       }
 
       const result = await userService.blockUser(String(currentUserId), String(id));
+      getIO().to(`user:${id}`).emit('user:blocked', { by: String(currentUserId) });
       return sendSuccess(res, result, 'Block user success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);
@@ -91,6 +93,7 @@ const userController = {
       }
 
       const result = await userService.unblockUser(String(currentUserId), String(id));
+      getIO().to(`user:${id}`).emit('user:unblocked', { by: String(currentUserId) });
       return sendSuccess(res, result, 'Unblock user success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 500);

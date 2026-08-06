@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Avatar, Modal, Popover, Skeleton, Typography } from 'antd';
 import { CloseOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 
@@ -21,12 +22,21 @@ interface StoryViewerModalProps {
 
 const StoryViewerModal = ({ open, onClose, userId, currentUserId }: StoryViewerModalProps) => {
   const [index, setIndex] = useState(0);
+  const queryClient = useQueryClient();
   const { data, isLoading } = useUserStories(open ? userId : '');
   const deleteStoryMutation = useDeleteStory();
 
   const stories = useMemo(() => data?.data.stories ?? [], [data]);
   const activeStory = stories[index];
   const isOwn = currentUserId === userId;
+
+  useEffect(() => {
+    // Viewing marks the story as watched server-side (see storyService.getStoriesByUser),
+    // so the "unviewed" ring on StoryBar needs a refetch to reflect it without a page reload.
+    if (data && !isOwn) {
+      queryClient.invalidateQueries({ queryKey: ['stories', 'feed'] });
+    }
+  }, [data, isOwn, queryClient]);
 
   const { data: viewersData } = useStoryViewers(activeStory?._id ?? '', isOwn && open);
   const viewers = viewersData?.data.viewers ?? [];

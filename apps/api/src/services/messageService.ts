@@ -4,6 +4,7 @@ import Attachment from '@/models/attachment';
 import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
 import User from '@/models/user';
+import Block from '@/models/block';
 import { assertMember, assertAdmin } from '@/services/membershipService';
 import { sanitizeText } from '@/helpers/sanitize';
 
@@ -13,7 +14,11 @@ const populateMessage = (query: any) =>
   query
     .populate({ path: 'senderId', select: '_id username avatar' })
     .populate({ path: 'attachmentIds' })
-    .populate({ path: 'replyToMessageId', select: '_id content senderId type isDeleted' });
+    .populate({
+      path: 'replyToMessageId',
+      select: '_id content senderId type isDeleted',
+      populate: { path: 'senderId', select: '_id username' },
+    });
 
 const messageService = {
   listMessages: async (
@@ -65,6 +70,26 @@ const messageService = {
       const sender = await User.findById(userId).select('accountStatus');
       if (sender?.accountStatus === 'locked') {
         throw new Error('Tài khoản của bạn đã bị khóa, không thể gửi tin nhắn!');
+      }
+
+      const conversation = await Conversation.findById(conversationId).select('type');
+      if (conversation?.type === 'private') {
+        const otherMember = await ConversationMember.findOne({
+          conversationId,
+          userId: { $ne: userId },
+        }).select('userId');
+
+        if (otherMember) {
+          const blockExists = await Block.exists({
+            $or: [
+              { userId: otherMember.userId, blockedUserId: userId },
+              { userId, blockedUserId: otherMember.userId },
+            ],
+          });
+          if (blockExists) {
+            throw new Error('Không thể gửi tin nhắn vì bạn hoặc người này đã chặn nhau!');
+          }
+        }
       }
 
       const content = sanitizeText(data.content);

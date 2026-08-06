@@ -146,6 +146,21 @@ const notificationService = {
       throw error;
     }
   },
+
+  // Called whenever a user reads a conversation (whether they got there via the
+  // notification bell or by navigating directly) so stale "unread" notifications
+  // for that conversation don't linger.
+  markConversationNotificationsAsRead: async (userId: string, conversationId: string) => {
+    try {
+      const result = await Notification.updateMany(
+        { userId, isRead: false, link: `/chat/${conversationId}` },
+        { isRead: true },
+      );
+      return { modifiedCount: result.modifiedCount };
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 export default notificationService;

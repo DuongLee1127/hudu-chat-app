@@ -1,10 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+type PresenceStatus = 'online' | 'offline';
+
 interface ChatState {
   selectedConversationId: string | null;
   searchQuery: string;
-  onlineUserIds: Record<string, true>;
+  /** Live presence signals received over the socket since connecting, keyed by userId.
+   *  Overrides the (possibly stale) `status` field cached from REST queries — see
+   *  `resolvePresence` below. Absent entries mean "no live signal yet, use REST value". */
+  onlineStatusOverrides: Record<string, PresenceStatus>;
   typingByConversation: Record<string, Record<string, true>>;
   setSelectedConversationId: (id: string | null) => void;
   setSearchQuery: (query: string) => void;
@@ -19,7 +24,7 @@ export const useChatStore = create<ChatState>()(
     (set) => ({
       selectedConversationId: null,
       searchQuery: '',
-      onlineUserIds: {},
+      onlineStatusOverrides: {},
       typingByConversation: {},
 
       setSelectedConversationId: (id) => set({ selectedConversationId: id }),
@@ -27,14 +32,14 @@ export const useChatStore = create<ChatState>()(
       setSearchQuery: (query) => set({ searchQuery: query }),
 
       setUserOnline: (userId) =>
-        set((state) => ({ onlineUserIds: { ...state.onlineUserIds, [userId]: true } })),
+        set((state) => ({
+          onlineStatusOverrides: { ...state.onlineStatusOverrides, [userId]: 'online' },
+        })),
 
       setUserOffline: (userId) =>
-        set((state) => {
-          const next = { ...state.onlineUserIds };
-          delete next[userId];
-          return { onlineUserIds: next };
-        }),
+        set((state) => ({
+          onlineStatusOverrides: { ...state.onlineStatusOverrides, [userId]: 'offline' },
+        })),
 
       setUserTyping: (conversationId, userId) =>
         set((state) => ({
@@ -62,3 +67,12 @@ export const useChatStore = create<ChatState>()(
     },
   ),
 );
+
+/** Live socket presence wins over the REST-cached `status` field, which is only as
+ *  fresh as the last query fetch. Falls back to that cached value until a live
+ *  online/offline signal for this user has been received this session. */
+export const resolvePresence = (
+  overrides: Record<string, PresenceStatus>,
+  userId: string | undefined,
+  fallback: 'online' | 'offline' | 'away' | undefined,
+): 'online' | 'offline' | 'away' | undefined => (userId ? overrides[userId] ?? fallback : fallback);

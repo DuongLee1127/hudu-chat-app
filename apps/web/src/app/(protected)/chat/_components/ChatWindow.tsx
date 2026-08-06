@@ -10,6 +10,7 @@ import {
   Image,
   Input,
   type InputRef,
+  Popover,
   Skeleton,
   Typography,
 } from 'antd';
@@ -25,15 +26,18 @@ import {
   PaperClipOutlined,
   FileOutlined,
   CloseCircleFilled,
+  CloseOutlined,
   PhoneOutlined,
   VideoCameraOutlined,
   PictureOutlined,
+  RollbackOutlined,
 } from '@ant-design/icons';
+import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 import { useConversationDetail } from '@/hook/useConversations';
 import type { Message, MessageAttachment, MessageType } from '@/types/message';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useSocketContext } from '@/providers/SocketProvider';
-import { useChatStore } from '@/store/useChatStore';
+import { useChatStore, resolvePresence } from '@/store/useChatStore';
 import { useCallStore } from '@/store/useCallStore';
 import { useCallContext } from '@/providers/CallProvider';
 import { useActiveCall } from '@/hook/useCalls';
@@ -139,7 +143,12 @@ interface ChatWindowProps {
   currentUserId?: string;
   messages: Message[];
   messagesLoading: boolean;
-  onSend: (text: string, attachmentIds?: string[], type?: MessageType) => void;
+  onSend: (
+    text: string,
+    attachmentIds?: string[],
+    type?: MessageType,
+    replyToMessageId?: string,
+  ) => void;
   sendLoading: boolean;
   isBlocked: boolean;
   onToggleBlock: () => void;
@@ -166,6 +175,10 @@ const ChatWindow = ({
   const [mediaCenterOpen, setMediaCenterOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [replyResetKey, setReplyResetKey] = useState(conversationId);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesContentRef = useRef<HTMLDivElement>(null);
@@ -186,15 +199,19 @@ const ChatWindow = ({
   const { data, isLoading } = useConversationDetail(conversationId ?? '');
   const conversation = data?.data.conversation;
   const members = data?.data.members ?? [];
+  const blockedByOther = data?.data.blockedByOther ?? false;
   const otherMember =
     conversation?.type === 'private'
       ? members.find((m) => m.userId._id !== currentUserId)?.userId
       : null;
+  const onlineStatusOverrides = useChatStore((s) => s.onlineStatusOverrides);
+  const otherMemberStatus = resolvePresence(onlineStatusOverrides, otherMember?._id, otherMember?.status);
 
   const isGroup = conversation?.type === 'group';
   const displayName = isGroup ? conversation?.name || 'Nhóm chat' : otherMember?.username;
   const avatarUrl = isGroup ? conversation?.avatar : otherMember?.avatar;
   const canBlock = !isGroup && !!otherMember;
+  const cannotSend = isBlocked || blockedByOther;
 
   const { startCall, joinOngoingCall } = useCallContext();
   const callPhase = useCallStore((s) => s.phase);
@@ -249,9 +266,16 @@ const ChatWindow = ({
   };
 
   useEffect(() => {
-    if (!conversationId || isLoading || isBlocked) return;
+    if (!conversationId || isLoading || cannotSend) return;
     messageInputRef.current?.focus();
-  }, [conversationId, isLoading, isBlocked]);
+  }, [conversationId, isLoading, cannotSend]);
+
+  // Reset the reply target when switching conversations. Adjusting state during
+  // render (instead of in an effect) avoids an extra render pass.
+  if (replyResetKey !== conversationId) {
+    setReplyResetKey(conversationId);
+    setReplyingTo(null);
+  }
 
   useEffect(() => {
     if (!conversationId || messages.length === 0) return;
@@ -309,6 +333,20 @@ const ChatWindow = ({
     setPendingAttachments((prev) => prev.filter((a) => a._id !== id));
   };
 
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    const inputEl = messageInputRef.current?.input;
+    const start = inputEl?.selectionStart ?? draft.length;
+    const end = inputEl?.selectionEnd ?? draft.length;
+    const nextDraft = draft.slice(0, start) + emojiData.emoji + draft.slice(end);
+    handleDraftChange(nextDraft);
+
+    requestAnimationFrame(() => {
+      const pos = start + emojiData.emoji.length;
+      inputEl?.focus();
+      inputEl?.setSelectionRange(pos, pos);
+    });
+  };
+
   if (!conversationId) {
     return (
       <div
@@ -341,7 +379,7 @@ const ChatWindow = ({
   }
 
   const handleSend = () => {
-    if ((!draft.trim() && pendingAttachments.length === 0) || isBlocked || uploading) return;
+    if ((!draft.trim() && pendingAttachments.length === 0) || cannotSend || uploading) return;
     const messageType: MessageType | undefined =
       pendingAttachments.length > 0
         ? pendingAttachments.every((a) => a.mimeType.startsWith('image/'))
@@ -352,9 +390,11 @@ const ChatWindow = ({
       draft,
       pendingAttachments.length > 0 ? pendingAttachments.map((a) => a._id) : undefined,
       messageType,
+      replyingTo?._id,
     );
     setDraft('');
     setPendingAttachments([]);
+    setReplyingTo(null);
     if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
     if (conversationId) stopTyping(conversationId);
     stickToBottomRef.current = true;
@@ -395,10 +435,10 @@ const ChatWindow = ({
               </Text>
             ) : (
               <Text
-                type={otherMember?.status === 'online' ? 'success' : 'secondary'}
+                type={otherMemberStatus === 'online' ? 'success' : 'secondary'}
                 style={{ fontSize: 12 }}
               >
-                {otherMember?.status === 'online' ? '● Đang hoạt động' : 'Ngoại tuyến'}
+                {otherMemberStatus === 'online' ? '● Đang hoạt động' : 'Ngoại tuyến'}
               </Text>
             )}
           </div>
@@ -464,6 +504,15 @@ const ChatWindow = ({
           showIcon
           banner
           title="Bạn đã chặn người dùng này. Bỏ chặn để có thể tiếp tục nhắn tin."
+        />
+      )}
+
+      {!isBlocked && blockedByOther && (
+        <Alert
+          type="warning"
+          showIcon
+          banner
+          title="Người dùng này đã chặn bạn. Bạn không thể nhắn tin cho họ."
         />
       )}
 
@@ -560,7 +609,17 @@ const ChatWindow = ({
                     )}
                     <div
                       className="max-w-[85%] sm:max-w-[70%]"
-                      style={{ display: 'flex', alignItems: 'flex-end', gap: 8, minWidth: 0 }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        gap: 4,
+                        minWidth: 0,
+                        flexDirection: mine ? 'row-reverse' : 'row',
+                      }}
+                      onMouseEnter={() => setHoveredMessageId(msg._id)}
+                      onMouseLeave={() =>
+                        setHoveredMessageId((id) => (id === msg._id ? null : id))
+                      }
                     >
                       {showSenderInfo && (
                         <Avatar
@@ -593,6 +652,41 @@ const ChatWindow = ({
                           'Tin nhắn đã được thu hồi'
                         ) : (
                           <>
+                            {msg.replyToMessageId && (
+                              <div
+                                style={{
+                                  borderLeft: `3px solid ${mine ? 'rgba(255,255,255,0.6)' : '#5b5bf6'}`,
+                                  background: mine ? 'rgba(255,255,255,0.12)' : 'rgba(91,91,246,0.06)',
+                                  borderRadius: 6,
+                                  padding: '4px 8px',
+                                  marginBottom: 2,
+                                }}
+                              >
+                                <Text
+                                  strong
+                                  style={{
+                                    fontSize: 11,
+                                    display: 'block',
+                                    color: mine ? 'rgba(255,255,255,0.85)' : '#5b5bf6',
+                                  }}
+                                >
+                                  {msg.replyToMessageId.senderId.username}
+                                </Text>
+                                <Text
+                                  ellipsis
+                                  style={{
+                                    fontSize: 12,
+                                    display: 'block',
+                                    color: mine ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)',
+                                    fontStyle: msg.replyToMessageId.isDeleted ? 'italic' : 'normal',
+                                  }}
+                                >
+                                  {msg.replyToMessageId.isDeleted
+                                    ? 'Tin nhắn đã được thu hồi'
+                                    : msg.replyToMessageId.content || 'Tệp đính kèm'}
+                                </Text>
+                              </div>
+                            )}
                             {msg.attachmentIds?.map((attachment) => (
                               <AttachmentPreview key={attachment._id} attachment={attachment} />
                             ))}
@@ -600,6 +694,18 @@ const ChatWindow = ({
                           </>
                         )}
                       </div>
+                      {!msg.isDeleted && hoveredMessageId === msg._id && (
+                        <Button
+                          type="text"
+                          size="small"
+                          shape="circle"
+                          icon={<RollbackOutlined style={{ fontSize: 14 }} />}
+                          onClick={() => {
+                            setReplyingTo(msg);
+                            messageInputRef.current?.focus();
+                          }}
+                        />
+                      )}
                     </div>
                     <Text
                       type={msg.status === 'failed' ? 'danger' : 'secondary'}
@@ -627,6 +733,41 @@ const ChatWindow = ({
       </div>
 
       <div className="border-t border-[#eef0f7] bg-white p-3 md:p-4 md:px-6">
+        {replyingTo && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              padding: '6px 10px',
+              borderRadius: 10,
+              background: '#f4f5fb',
+              borderLeft: '3px solid #5b5bf6',
+              marginBottom: 10,
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <Text strong style={{ fontSize: 12, display: 'block', color: '#5b5bf6' }}>
+                Đang trả lời{' '}
+                {replyingTo.senderId._id === currentUserId ? 'chính mình' : replyingTo.senderId.username}
+              </Text>
+              <Text
+                ellipsis
+                style={{ fontSize: 12, display: 'block', color: 'rgba(0,0,0,0.55)' }}
+              >
+                {replyingTo.content || 'Tệp đính kèm'}
+              </Text>
+            </div>
+            <Button
+              type="text"
+              size="small"
+              shape="circle"
+              icon={<CloseOutlined style={{ fontSize: 12 }} />}
+              onClick={() => setReplyingTo(null)}
+            />
+          </div>
+        )}
         {pendingAttachments.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
             {pendingAttachments.map((attachment) => (
@@ -687,20 +828,37 @@ const ChatWindow = ({
             icon={<PaperClipOutlined style={{ fontSize: 18 }} />}
             shape="circle"
             loading={uploading}
-            disabled={isBlocked || pendingAttachments.length >= MAX_FILES_PER_MESSAGE}
+            disabled={cannotSend || pendingAttachments.length >= MAX_FILES_PER_MESSAGE}
             onClick={handlePickFile}
           />
           <Input
             ref={messageInputRef}
-            placeholder={isBlocked ? 'Bạn đã chặn người dùng này' : 'Nhập tin nhắn...'}
+            placeholder={
+              isBlocked
+                ? 'Bạn đã chặn người dùng này'
+                : blockedByOther
+                  ? 'Bạn không thể nhắn tin cho người dùng này'
+                  : 'Nhập tin nhắn...'
+            }
             size="large"
             variant="filled"
             value={draft}
-            disabled={isBlocked}
+            disabled={cannotSend}
             onChange={(e) => handleDraftChange(e.target.value)}
             onPressEnter={handleSend}
             style={{ borderRadius: 20 }}
-            suffix={<SmileOutlined style={{ color: 'rgba(0,0,0,0.35)' }} />}
+            suffix={
+              <Popover
+                trigger="click"
+                open={emojiPickerOpen}
+                onOpenChange={setEmojiPickerOpen}
+                placement="topRight"
+                styles={{ content: { padding: 0 } }}
+                content={<EmojiPicker onEmojiClick={handleEmojiClick} />}
+              >
+                <SmileOutlined style={{ color: 'rgba(0,0,0,0.35)', cursor: 'pointer' }} />
+              </Popover>
+            }
           />
           <Button
             type="primary"
@@ -708,7 +866,7 @@ const ChatWindow = ({
             size="large"
             shape="circle"
             loading={sendLoading}
-            disabled={(!draft.trim() && pendingAttachments.length === 0) || isBlocked || uploading}
+            disabled={(!draft.trim() && pendingAttachments.length === 0) || cannotSend || uploading}
             onClick={handleSend}
           />
         </div>

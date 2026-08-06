@@ -30,6 +30,7 @@ import {
 import type { User } from '@/types/user';
 import { colorForId, initialOf } from '@/lib/avatar';
 import { useIncomingFriendRequests } from '@/hook/useFriend';
+import { useChatStore, resolvePresence } from '@/store/useChatStore';
 import ConversationsList from './ConversationsList';
 import CreateGroupModal from './CreateGroupModal';
 import AddFriendModal from './AddFriendModal';
@@ -71,6 +72,7 @@ const Sidebar = ({
   logoutLoading,
 }: SidebarProps) => {
   const router = useRouter();
+  const onlineStatusOverrides = useChatStore((s) => s.onlineStatusOverrides);
   const [activeTab, setActiveTab] = useState<'conversations' | 'contacts'>('conversations');
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
@@ -241,7 +243,11 @@ const Sidebar = ({
                   }}
                 >
                   <Flex gap={12} align="center">
-                    <Badge dot={user.status === 'online'} color="green" offset={[-4, 36]}>
+                    <Badge
+                      dot={resolvePresence(onlineStatusOverrides, user._id, user.status) === 'online'}
+                      color="green"
+                      offset={[-4, 36]}
+                    >
                       <Avatar
                         size={44}
                         src={user.avatar || undefined}

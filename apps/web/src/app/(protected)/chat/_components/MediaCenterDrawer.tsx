@@ -22,7 +22,13 @@ interface MediaCenterDrawerProps {
   conversationId: string;
 }
 
-const MediaGrid = ({ conversationId, type }: { conversationId: string; type: AttachmentMediaType }) => {
+const MediaGrid = ({
+  conversationId,
+  type,
+}: {
+  conversationId: string;
+  type: AttachmentMediaType;
+}) => {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useConversationAttachments(conversationId, type);
 
@@ -88,7 +94,12 @@ const MediaGrid = ({ conversationId, type }: { conversationId: string; type: Att
         </div>
       </Image.PreviewGroup>
       {hasNextPage && (
-        <Button block style={{ marginTop: 12 }} loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
+        <Button
+          block
+          style={{ marginTop: 12 }}
+          loading={isFetchingNextPage}
+          onClick={() => fetchNextPage()}
+        >
           Tải thêm
         </Button>
       )}
@@ -101,7 +112,7 @@ const MediaCenterDrawer = ({ open, onClose, conversationId }: MediaCenterDrawerP
   const [activeTab, setActiveTab] = useState<AttachmentMediaType>('image');
 
   return (
-    <Drawer title="Kho lưu trữ" open={open} onClose={onClose} width={isMobile ? '92%' : 400}>
+    <Drawer title="Kho lưu trữ" open={open} onClose={onClose} size={isMobile ? '92%' : 400}>
       <Tabs
         activeKey={activeTab}
         onChange={(key) => setActiveTab(key as AttachmentMediaType)}

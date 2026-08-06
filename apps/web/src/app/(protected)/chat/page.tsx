@@ -124,10 +124,15 @@ const ChatPage = () => {
     }
   };
 
-  const handleSendMessage = (text: string, attachmentIds?: string[], type?: MessageType) => {
+  const handleSendMessage = (
+    text: string,
+    attachmentIds?: string[],
+    type?: MessageType,
+    replyToMessageId?: string,
+  ) => {
     if (!selectedConversationId) return;
     sendMessageMutation.mutate(
-      { content: text, attachmentIds, type },
+      { content: text, attachmentIds, type, replyToMessageId },
       {
         onError: (err) => {
           const axiosErr = err as AxiosError<ApiResponse<null>>;

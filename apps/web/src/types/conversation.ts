@@ -82,4 +82,5 @@ export interface ListConversationsParams {
 export interface ConversationDetailResult {
   conversation: Conversation;
   members: ConversationMember[];
+  blockedByOther: boolean;
 }

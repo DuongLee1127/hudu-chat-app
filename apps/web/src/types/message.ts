@@ -21,7 +21,7 @@ export interface MessageAttachment {
 export interface MessageReplyPreview {
   _id: string;
   content: string;
-  senderId: string;
+  senderId: { _id: string; username: string };
   type: MessageType;
   isDeleted: boolean;
 }

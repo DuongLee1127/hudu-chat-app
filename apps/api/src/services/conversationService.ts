@@ -3,6 +3,7 @@ import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
 import Message from '@/models/message';
 import User from '@/models/user';
+import Block from '@/models/block';
 import { assertMember, assertAdmin, getMembership } from '@/services/membershipService';
 import { sanitizeText } from '@/helpers/sanitize';
 
@@ -218,7 +219,19 @@ const conversationService = {
       }
 
       const members = await getMembersWithUser(conversationId);
-      return { conversation, members };
+
+      let blockedByOther = false;
+      if (conversation.type === 'private') {
+        const otherMember = members.find((m) => String((m.userId as any)._id) !== userId);
+        if (otherMember) {
+          blockedByOther = !!(await Block.exists({
+            userId: (otherMember.userId as any)._id,
+            blockedUserId: userId,
+          }));
+        }
+      }
+
+      return { conversation, members, blockedByOther };
     } catch (error) {
       throw error;
     }

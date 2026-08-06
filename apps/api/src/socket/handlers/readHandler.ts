@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import messageService from '@/services/messageService';
+import notificationService from '@/services/notificationService';
 
 export const registerReadHandlers = (io: Server, socket: Socket) => {
   socket.on(
@@ -14,6 +15,16 @@ export const registerReadHandlers = (io: Server, socket: Socket) => {
           userId,
           lastReadMessageId: payload.lastReadMessageId,
         });
+
+        const { modifiedCount } = await notificationService.markConversationNotificationsAsRead(
+          userId,
+          payload.conversationId,
+        );
+        if (modifiedCount > 0) {
+          io.to(`user:${userId}`).emit('notification:read-bulk', {
+            conversationId: payload.conversationId,
+          });
+        }
 
         ack?.({ success: true });
       } catch (error) {

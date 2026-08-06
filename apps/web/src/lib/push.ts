@@ -29,10 +29,22 @@ export const subscribeToPush = async () => {
   }
 
   const registration = await navigator.serviceWorker.register('/sw.js');
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-  });
+
+  let subscription: PushSubscription;
+  try {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+  } catch {
+    // The browser failed to reach its push service (Google FCM for Chrome/Edge,
+    // Mozilla autopush for Firefox) — almost always a network/firewall/VPN block
+    // or a privacy-focused browser (Brave) disabling Google push services, not
+    // something this app can fix client-side.
+    throw new Error(
+      'Trình duyệt không thể kết nối tới dịch vụ thông báo đẩy. Hãy kiểm tra mạng/VPN, tắt tiện ích chặn quảng cáo, hoặc (nếu dùng Brave) bật "Use Google services for push messaging" trong cài đặt trình duyệt, rồi thử lại.',
+    );
+  }
 
   const json = subscription.toJSON();
   await pushService.subscribe({
