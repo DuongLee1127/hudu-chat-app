@@ -171,6 +171,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       notify.info(notification.content);
     };
 
+    const onStoryNew = () => {
+      queryClient.invalidateQueries({ queryKey: ['stories', 'feed'] });
+    };
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
@@ -186,6 +190,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     socket.on('friend_request:accepted', onFriendRequestChanged);
     socket.on('friend_request:removed', onFriendRequestChanged);
     socket.on('notification:new', onNotificationNew);
+    socket.on('story:new', onStoryNew);
 
     return () => {
       socket.off('connect', onConnect);
@@ -203,6 +208,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socket.off('friend_request:accepted', onFriendRequestChanged);
       socket.off('friend_request:removed', onFriendRequestChanged);
       socket.off('notification:new', onNotificationNew);
+      socket.off('story:new', onStoryNew);
       socket.disconnect();
     };
   }, [

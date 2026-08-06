@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
-import storyService from '@/services/storyService';
+import storyService, { getFriendIds } from '@/services/storyService';
 import { sendSuccess, sendError } from '@/helpers';
+import { getIO } from '@/socket';
 
 const storyController = {
   createStory: async (req: Request, res: Response) => {
@@ -17,6 +18,13 @@ const storyController = {
 
       const { caption } = req.body;
       const story = await storyService.createStory(String(userId), file, caption);
+
+      const friendIds = await getFriendIds(String(userId));
+      const io = getIO();
+      friendIds.forEach((friendId) => {
+        io.to(`user:${friendId}`).emit('story:new', { userId: String(userId) });
+      });
+
       return sendSuccess(res, { story }, 'Create story success', 201);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);

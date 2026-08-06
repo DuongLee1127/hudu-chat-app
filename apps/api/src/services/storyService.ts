@@ -5,7 +5,7 @@ import { IMAGE_MIME_TYPES } from '@/config/upload';
 
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 
-const getFriendIds = async (userId: string) => {
+export const getFriendIds = async (userId: string) => {
   const friendships = await Friend.find({
     status: 'accepted',
     $or: [{ requesterId: userId }, { recipientId: userId }],
@@ -61,7 +61,9 @@ const storyService = {
 
       const groupedByUser = new Map<string, typeof stories>();
       for (const story of stories) {
-        const key = String(story.userId);
+        // story.userId is populated (a User sub-document), so String(story.userId)
+        // would stringify the whole object — use its _id instead.
+        const key = String((story.userId as any)._id);
         const bucket = groupedByUser.get(key) || [];
         bucket.push(story);
         groupedByUser.set(key, bucket);
