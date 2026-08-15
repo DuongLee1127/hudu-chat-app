@@ -4,7 +4,7 @@
     "apps/*"
   ],
   "devDependencies": {
-    "concurrently": "^9.2.1",
+    "concurrently": "^9.2.4",
     "prettier": "^3.8.3"
   },
   "scripts": {
@@ -17,8 +17,5 @@
     "install:web": "npm install && npm install --workspace=web",
     "build": "npm run build --workspaces",
     "start": "bash ./start.sh"
-  },
-  "dependencies": {
-    "mongoose": "^9.6.3"
   }
 }
