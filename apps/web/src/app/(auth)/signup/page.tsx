@@ -41,9 +41,9 @@ const SignUpPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="flex flex-col min-h-screen md:flex-row">
       {/* Brand panel */}
-      <div className="auth-brand-panel hidden flex-1 flex-col justify-center text-white md:flex md:p-16">
+      <div className="flex-col justify-center flex-1 hidden text-white auth-brand-panel md:flex md:p-16">
         <div style={{ maxWidth: 420, position: 'relative', zIndex: 1 }}>
           <div
             style={{
@@ -97,7 +97,7 @@ const SignUpPage = () => {
         />
         <Card
           variant="outlined"
-          className="relative z-1 w-full max-w-110 md:w-105"
+          className="relative w-full z-1 max-w-110 md:w-105"
           style={{
             borderRadius: 20,
             boxShadow: '0 20px 48px rgba(37, 24, 97, 0.12)',

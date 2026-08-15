@@ -1,6 +1,13 @@
 import { FlatList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import ChatItem from '@/components/ChatItem';
 import StoryItem from '@/components/StoryItem';
@@ -142,47 +149,67 @@ const chats: Chat[] = [
 ];
 
 export default function ChatScreen() {
+  const scrollY = useSharedValue(0);
+
+  const storyAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(scrollY.value, [0, 80], [1, 0], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(scrollY.value, [0, 80], [0, -40], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+
   return (
-    <SafeAreaView className="bg-white" edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
       <StatusBar style="dark" />
 
-      {/* Main white container */}
-      <View className="rounded-b-[32px] bg-white px-7">
-        <View className="flex-row justify-between pt-2 pb-4">
-          <Text className="text-2xl font-bold">Chat</Text>
-          <Text className="text-2xl font-bold">Chat</Text>
-        </View>
+      <View className="flex-1 bg-[#EEF3FB]">
+        {/* Main white container */}
+        <View className="flex-1 rounded-b-[32px] bg-white px-7">
+          <View className="flex-row justify-between pt-2 pb-4">
+            <Text className="text-2xl font-bold">Chat</Text>
+            <View className="flex-row items-center gap-4">
+              <Ionicons name="camera-outline" size={24} color="#1A1A1A" />
+              <Ionicons name="create-outline" size={24} color="#1A1A1A" />
+            </View>
+          </View>
 
-        <SearchInput />
+          <SearchInput />
 
-        {/* Story List */}
-        <View className="mt-6">
-          <Text className="mb-3 text-[12px] font-semibold tracking-wide text-[#A7ADB7]">
-            RECENTS UPDATE
-          </Text>
-
-          <FlatList
-            data={stories}
-            horizontal
+          {/* Story List */}
+          <Animated.FlatList
+            data={chats}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <StoryItem item={item} />}
-            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => <ChatItem item={item} />}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={(event) => {
+              scrollY.value = event.nativeEvent.contentOffset.y;
+            }}
+            ListHeaderComponent={
+              <Animated.View style={[{ overflow: 'hidden' }, storyAnimatedStyle]}>
+                <View className="pt-6">
+                  <FlatList
+                    data={stories}
+                    horizontal
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => <StoryItem item={item} />}
+                    showsHorizontalScrollIndicator={false}
+                  />
+                </View>
+
+                <View className="my-4 h-px bg-[#EEEEEE]" />
+              </Animated.View>
+            }
+            contentContainerStyle={{
+              paddingBottom: 20,
+            }}
           />
         </View>
-
-        <View className="my-4 h-px bg-[#EEEEEE]" />
-
-        <FlatList
-          data={chats}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ChatItem item={item} />}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingBottom: 20,
-          }}
-        />
       </View>
-      {/* </View> */}
     </SafeAreaView>
   );
 }

@@ -17,6 +17,7 @@ type Chat = {
 
 export default function ChatItem({ item }: { item: Chat }) {
   const router = useRouter();
+
   const handlePress = () => {
     router.push({
       pathname: '/chat/[id]',
@@ -25,8 +26,13 @@ export default function ChatItem({ item }: { item: Chat }) {
       },
     });
   };
+
   return (
-    <Pressable className="flex-row py-3.5" onPress={handlePress}>
+    <Pressable
+      className="flex-row px-2 rounded-xl py-3.5 active:bg-[#F5F6F8]"
+      android_ripple={{ color: '#F5F6F8' }}
+      onPress={handlePress}
+    >
       {/* Avatar */}
       <Image source={{ uri: item.avatar }} className="h-[50px] w-[50px] rounded-full" />
 

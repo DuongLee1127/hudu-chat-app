@@ -9,7 +9,7 @@ export default function SearchInput() {
 
         <TextInput
           className="ml-2 flex-1 text-[13px] text-[#222]"
-          placeholder="Search your chat"
+          placeholder="Tìm đoạn chat"
           placeholderTextColor="#A7ADB7"
           autoCapitalize="none"
           returnKeyType="search"
