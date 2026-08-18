@@ -1,7 +1,7 @@
 'use client';
 
 import { Form, Input, Button, Card, Typography, Divider, Checkbox } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, MessageOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -43,7 +43,7 @@ const SignUpPage = () => {
   return (
     <div className="flex flex-col min-h-screen md:flex-row">
       {/* Brand panel */}
-      <div className="flex-col justify-center flex-1 hidden text-white auth-brand-panel md:flex md:p-16">
+      <div className="hidden flex-col flex-1 justify-center text-white auth-brand-panel md:flex md:p-16">
         <div style={{ maxWidth: 420, position: 'relative', zIndex: 1 }}>
           <div
             style={{

@@ -205,7 +205,11 @@ const ChatWindow = ({
       ? members.find((m) => m.userId._id !== currentUserId)?.userId
       : null;
   const onlineStatusOverrides = useChatStore((s) => s.onlineStatusOverrides);
-  const otherMemberStatus = resolvePresence(onlineStatusOverrides, otherMember?._id, otherMember?.status);
+  const otherMemberStatus = resolvePresence(
+    onlineStatusOverrides,
+    otherMember?._id,
+    otherMember?.status,
+  );
 
   const isGroup = conversation?.type === 'group';
   const displayName = isGroup ? conversation?.name || 'Nhóm chat' : otherMember?.username;
@@ -455,11 +459,7 @@ const ChatWindow = ({
           disabled={!canStartCall}
           onClick={() => conversation && startCall(conversation._id, 'video')}
         />
-        <Button
-          type="text"
-          icon={<PictureOutlined />}
-          onClick={() => setMediaCenterOpen(true)}
-        />
+        <Button type="text" icon={<PictureOutlined />} onClick={() => setMediaCenterOpen(true)} />
         {canBlock && (
           <Dropdown
             menu={{
@@ -524,7 +524,12 @@ const ChatWindow = ({
           icon={activeCall.type === 'video' ? <VideoCameraOutlined /> : <PhoneOutlined />}
           title={isGroup ? 'Cuộc gọi nhóm đang diễn ra' : 'Cuộc gọi đang diễn ra'}
           action={
-            <Button size="small" type="primary" loading={joiningCall} onClick={handleJoinActiveCall}>
+            <Button
+              size="small"
+              type="primary"
+              loading={joiningCall}
+              onClick={handleJoinActiveCall}
+            >
               Tham gia
             </Button>
           }
@@ -534,7 +539,7 @@ const ChatWindow = ({
       <div
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
-        className="flex-1 overflow-y-auto p-4 md:p-6"
+        className="overflow-y-auto flex-1 p-4 md:p-6"
       >
         {messagesLoading && <Skeleton paragraph={{ rows: 4 }} active />}
         {!messagesLoading && messages.length === 0 && (
@@ -591,140 +596,144 @@ const ChatWindow = ({
                       </Text>
                     </div>
                   ) : (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: mine ? 'flex-end' : 'flex-start',
-                      marginBottom: 16,
-                    }}
-                  >
-                    {showSenderInfo && (
-                      <Text
-                        type="secondary"
-                        style={{ fontSize: 12, marginBottom: 2, marginLeft: 36 }}
-                      >
-                        {msg.senderId.username}
-                      </Text>
-                    )}
                     <div
-                      className="max-w-[85%] sm:max-w-[70%]"
                       style={{
                         display: 'flex',
-                        alignItems: 'flex-end',
-                        gap: 4,
-                        minWidth: 0,
-                        flexDirection: mine ? 'row-reverse' : 'row',
+                        flexDirection: 'column',
+                        alignItems: mine ? 'flex-end' : 'flex-start',
+                        marginBottom: 16,
                       }}
-                      onMouseEnter={() => setHoveredMessageId(msg._id)}
-                      onMouseLeave={() =>
-                        setHoveredMessageId((id) => (id === msg._id ? null : id))
-                      }
                     >
                       {showSenderInfo && (
-                        <Avatar
-                          size={28}
-                          src={msg.senderId.avatar || undefined}
-                          style={{ backgroundColor: colorForId(msg.senderId._id), flexShrink: 0 }}
+                        <Text
+                          type="secondary"
+                          style={{ fontSize: 12, marginBottom: 2, marginLeft: 36 }}
                         >
-                          {initialOf(msg.senderId.username)}
-                        </Avatar>
+                          {msg.senderId.username}
+                        </Text>
                       )}
                       <div
+                        className="max-w-[85%] sm:max-w-[70%]"
                         style={{
-                          minWidth: 0,
                           display: 'flex',
-                          flexDirection: 'column',
-                          gap: 6,
-                          padding:
-                            !msg.isDeleted && msg.attachmentIds?.length && !msg.content
-                              ? 4
-                              : '10px 16px',
-                          borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                          background: mine ? '#5b5bf6' : '#fff',
-                          color: mine ? '#fff' : 'rgba(0,0,0,0.88)',
-                          boxShadow: '0 2px 6px rgba(20,20,60,0.06)',
-                          wordBreak: 'break-word',
-                          fontStyle: msg.isDeleted ? 'italic' : 'normal',
+                          alignItems: 'flex-end',
+                          gap: 4,
+                          minWidth: 0,
+                          flexDirection: mine ? 'row-reverse' : 'row',
                         }}
+                        onMouseEnter={() => setHoveredMessageId(msg._id)}
+                        onMouseLeave={() =>
+                          setHoveredMessageId((id) => (id === msg._id ? null : id))
+                        }
                       >
-                        {msg.isDeleted ? (
-                          'Tin nhắn đã được thu hồi'
-                        ) : (
-                          <>
-                            {msg.replyToMessageId && (
-                              <div
-                                style={{
-                                  borderLeft: `3px solid ${mine ? 'rgba(255,255,255,0.6)' : '#5b5bf6'}`,
-                                  background: mine ? 'rgba(255,255,255,0.12)' : 'rgba(91,91,246,0.06)',
-                                  borderRadius: 6,
-                                  padding: '4px 8px',
-                                  marginBottom: 2,
-                                }}
-                              >
-                                <Text
-                                  strong
+                        {showSenderInfo && (
+                          <Avatar
+                            size={28}
+                            src={msg.senderId.avatar || undefined}
+                            style={{ backgroundColor: colorForId(msg.senderId._id), flexShrink: 0 }}
+                          >
+                            {initialOf(msg.senderId.username)}
+                          </Avatar>
+                        )}
+                        <div
+                          style={{
+                            minWidth: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 6,
+                            padding:
+                              !msg.isDeleted && msg.attachmentIds?.length && !msg.content
+                                ? 4
+                                : '10px 16px',
+                            borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                            background: mine ? '#5b5bf6' : '#fff',
+                            color: mine ? '#fff' : 'rgba(0,0,0,0.88)',
+                            boxShadow: '0 2px 6px rgba(20,20,60,0.06)',
+                            wordBreak: 'break-word',
+                            fontStyle: msg.isDeleted ? 'italic' : 'normal',
+                          }}
+                        >
+                          {msg.isDeleted ? (
+                            'Tin nhắn đã được thu hồi'
+                          ) : (
+                            <>
+                              {msg.replyToMessageId && (
+                                <div
                                   style={{
-                                    fontSize: 11,
-                                    display: 'block',
-                                    color: mine ? 'rgba(255,255,255,0.85)' : '#5b5bf6',
+                                    borderLeft: `3px solid ${mine ? 'rgba(255,255,255,0.6)' : '#5b5bf6'}`,
+                                    background: mine
+                                      ? 'rgba(255,255,255,0.12)'
+                                      : 'rgba(91,91,246,0.06)',
+                                    borderRadius: 6,
+                                    padding: '4px 8px',
+                                    marginBottom: 2,
                                   }}
                                 >
-                                  {msg.replyToMessageId.senderId.username}
-                                </Text>
-                                <Text
-                                  ellipsis
-                                  style={{
-                                    fontSize: 12,
-                                    display: 'block',
-                                    color: mine ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)',
-                                    fontStyle: msg.replyToMessageId.isDeleted ? 'italic' : 'normal',
-                                  }}
-                                >
-                                  {msg.replyToMessageId.isDeleted
-                                    ? 'Tin nhắn đã được thu hồi'
-                                    : msg.replyToMessageId.content || 'Tệp đính kèm'}
-                                </Text>
-                              </div>
-                            )}
-                            {msg.attachmentIds?.map((attachment) => (
-                              <AttachmentPreview key={attachment._id} attachment={attachment} />
-                            ))}
-                            {msg.content}
-                          </>
+                                  <Text
+                                    strong
+                                    style={{
+                                      fontSize: 11,
+                                      display: 'block',
+                                      color: mine ? 'rgba(255,255,255,0.85)' : '#5b5bf6',
+                                    }}
+                                  >
+                                    {msg.replyToMessageId.senderId.username}
+                                  </Text>
+                                  <Text
+                                    ellipsis
+                                    style={{
+                                      fontSize: 12,
+                                      display: 'block',
+                                      color: mine ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)',
+                                      fontStyle: msg.replyToMessageId.isDeleted
+                                        ? 'italic'
+                                        : 'normal',
+                                    }}
+                                  >
+                                    {msg.replyToMessageId.isDeleted
+                                      ? 'Tin nhắn đã được thu hồi'
+                                      : msg.replyToMessageId.content || 'Tệp đính kèm'}
+                                  </Text>
+                                </div>
+                              )}
+                              {msg.attachmentIds?.map((attachment) => (
+                                <AttachmentPreview key={attachment._id} attachment={attachment} />
+                              ))}
+                              {msg.content}
+                            </>
+                          )}
+                        </div>
+                        {!msg.isDeleted && hoveredMessageId === msg._id && (
+                          <Button
+                            type="text"
+                            size="small"
+                            shape="circle"
+                            icon={<RollbackOutlined style={{ fontSize: 14 }} />}
+                            onClick={() => {
+                              setReplyingTo(msg);
+                              messageInputRef.current?.focus();
+                            }}
+                          />
                         )}
                       </div>
-                      {!msg.isDeleted && hoveredMessageId === msg._id && (
-                        <Button
-                          type="text"
-                          size="small"
-                          shape="circle"
-                          icon={<RollbackOutlined style={{ fontSize: 14 }} />}
-                          onClick={() => {
-                            setReplyingTo(msg);
-                            messageInputRef.current?.focus();
-                          }}
-                        />
-                      )}
+                      <Text
+                        type={msg.status === 'failed' ? 'danger' : 'secondary'}
+                        style={{
+                          fontSize: 11,
+                          marginTop: 4,
+                          marginLeft: showSenderInfo ? 36 : 0,
+                        }}
+                      >
+                        {msg.status === 'sending' && 'Đang gửi...'}
+                        {msg.status === 'failed' && 'Gửi thất bại'}
+                        {(!msg.status || msg.status === 'sent') && (
+                          <>
+                            {formatMessageTime(msg.createdAt)}
+                            {msg.isEdited && !msg.isDeleted ? ' · Đã chỉnh sửa' : ''}
+                          </>
+                        )}
+                      </Text>
                     </div>
-                    <Text
-                      type={msg.status === 'failed' ? 'danger' : 'secondary'}
-                      style={{
-                        fontSize: 11,
-                        marginTop: 4,
-                        marginLeft: showSenderInfo ? 36 : 0,
-                      }}
-                    >
-                      {msg.status === 'sending' && 'Đang gửi...'}
-                      {msg.status === 'failed' && 'Gửi thất bại'}
-                      {(!msg.status || msg.status === 'sent') && (
-                        <>
-                          {formatMessageTime(msg.createdAt)}
-                          {msg.isEdited && !msg.isDeleted ? ' · Đã chỉnh sửa' : ''}
-                        </>
-                      )}
-                    </Text>
-                  </div>
                   )}
                 </div>
               );
@@ -750,12 +759,11 @@ const ChatWindow = ({
             <div style={{ minWidth: 0 }}>
               <Text strong style={{ fontSize: 12, display: 'block', color: '#5b5bf6' }}>
                 Đang trả lời{' '}
-                {replyingTo.senderId._id === currentUserId ? 'chính mình' : replyingTo.senderId.username}
+                {replyingTo.senderId._id === currentUserId
+                  ? 'chính mình'
+                  : replyingTo.senderId.username}
               </Text>
-              <Text
-                ellipsis
-                style={{ fontSize: 12, display: 'block', color: 'rgba(0,0,0,0.55)' }}
-              >
+              <Text ellipsis style={{ fontSize: 12, display: 'block', color: 'rgba(0,0,0,0.55)' }}>
                 {replyingTo.content || 'Tệp đính kèm'}
               </Text>
             </div>

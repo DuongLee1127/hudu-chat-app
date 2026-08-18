@@ -11,11 +11,11 @@ export default function StoryItem({ item }: { item: Story }) {
   return (
     <Pressable className="items-center mr-4">
       <View
-        className={`h-[58px] w-[58px] items-center justify-center rounded-full ${
+        className={`h-[68px] w-[68px] items-center justify-center rounded-full ${
           item.hasStory ? 'border-2 border-[#0879D1]' : 'border-2 border-[#E8E8E8]'
         }`}
       >
-        <Image source={{ uri: item.avatar }} className="h-[50px] w-[50px] rounded-full" />
+        <Image source={{ uri: item.avatar }} className="h-[62px] w-[62px] rounded-full" />
       </View>
 
       <Text numberOfLines={1} className="mt-1.5 max-w-[65px] text-center text-[12px] text-[#222]">

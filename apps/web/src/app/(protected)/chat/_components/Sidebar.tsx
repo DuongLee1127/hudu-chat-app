@@ -94,9 +94,7 @@ const Sidebar = ({
       ),
     },
     { key: 'blocked', icon: <StopOutlined />, label: 'Người dùng đã chặn' },
-    ...(isAdmin
-      ? [{ key: 'admin', icon: <DashboardOutlined />, label: 'Quản trị hệ thống' }]
-      : []),
+    ...(isAdmin ? [{ key: 'admin', icon: <DashboardOutlined />, label: 'Quản trị hệ thống' }] : []),
     { type: 'divider' as const },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
   ];
@@ -244,7 +242,9 @@ const Sidebar = ({
                 >
                   <Flex gap={12} align="center">
                     <Badge
-                      dot={resolvePresence(onlineStatusOverrides, user._id, user.status) === 'online'}
+                      dot={
+                        resolvePresence(onlineStatusOverrides, user._id, user.status) === 'online'
+                      }
                       color="green"
                       offset={[-4, 36]}
                     >
@@ -280,10 +280,7 @@ const Sidebar = ({
 
       <AddFriendModal open={addFriendOpen} onClose={() => setAddFriendOpen(false)} />
 
-      <FriendRequestsModal
-        open={friendRequestsOpen}
-        onClose={() => setFriendRequestsOpen(false)}
-      />
+      <FriendRequestsModal open={friendRequestsOpen} onClose={() => setFriendRequestsOpen(false)} />
     </div>
   );
 };

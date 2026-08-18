@@ -6,6 +6,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuthStore } from '@/stores/auth';
+
 const BUBBLE_SIZE = 60;
 
 const TABS = [
@@ -90,7 +92,7 @@ function CustomTabBar({ state, navigation }: any) {
         accessibilityState={{ selected: isFocused }}
         accessibilityLabel={tab.label}
         hitSlop={8}
-        className="items-center justify-center flex-1 py-2"
+        className="flex-1 justify-center items-center py-2"
       >
         <Ionicons
           name={(isFocused ? tab.icon : tab.iconOutline) as any}
@@ -109,7 +111,7 @@ function CustomTabBar({ state, navigation }: any) {
 
   return (
     <View
-      className="absolute bottom-0 left-0 right-0"
+      className="absolute right-0 bottom-0 left-0"
       style={{ paddingBottom: insets.bottom || 12 }}
       pointerEvents="box-none"
     >
@@ -149,9 +151,9 @@ function CustomTabBar({ state, navigation }: any) {
 }
 
 export default function TabBarLayout() {
-  const isAuthenticated = true;
+  const { user } = useAuthStore();
 
-  if (!isAuthenticated) {
+  if (!user) {
     return <Redirect href="/(auth)/signin" />;
   }
 

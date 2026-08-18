@@ -1,14 +1,26 @@
-import { Stack, Redirect } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
+
+import { useAuthStore } from '@/stores/auth';
 
 export default function AuthLayout() {
-  const isAuthenticated = true;
+  const user = useAuthStore((state) => state.user);
 
-  if (isAuthenticated) return <Redirect href="/" />;
+  if (user) {
+    return <Redirect href="/" />;
+  }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="signin" options={{ headerShown: false }} />
-      <Stack.Screen name="signup" options={{ headerShown: false }} />
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+        contentStyle: {
+          backgroundColor: '#F8F7FF',
+        },
+      }}
+    >
+      <Stack.Screen name="signin" />
+      <Stack.Screen name="signup" />
     </Stack>
   );
 }

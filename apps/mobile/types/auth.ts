@@ -8,3 +8,18 @@ export interface RegisterPayload {
   password: string;
   username: string;
 }
+
+export interface LoginResult {
+  email: string;
+  username: string;
+  bio: string;
+  avatar: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RegisterResult {
+  id: string;
+  email: string;
+  username: string;
+}

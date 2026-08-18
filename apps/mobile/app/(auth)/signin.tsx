@@ -8,12 +8,12 @@ import {
   View,
   Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import type { AxiosError } from 'axios';
 
 import { useLogin } from '@/hooks/useAuth';
+import { useAuthStore } from '@/stores/auth';
 import type { ApiResponse } from '@/types/api';
 
 export default function SignInScreen() {
@@ -22,6 +22,7 @@ export default function SignInScreen() {
   const [errorMsg, setErrorMsg] = useState('');
 
   const loginMutation = useLogin();
+  const { setUser } = useAuthStore();
 
   // Hàm đăng nhập
   const handleSignIn = () => {
@@ -31,9 +32,9 @@ export default function SignInScreen() {
     };
 
     loginMutation.mutate(values, {
-      onSuccess: () => {
-        console.log('Đăng nhập thành công!');
-        router.navigate('/');
+      onSuccess: (response) => {
+        setUser(response?.data);
+        router.replace('/');
       },
       onError: (err) => {
         const axiosErr = err as AxiosError<ApiResponse<null>>;
@@ -43,8 +44,7 @@ export default function SignInScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f4f5fb]">
-      {/* Decorative glow blob to echo the web app's brand panel */}
+    <View className="flex-1 bg-[#f4f5fb]">
       <View
         pointerEvents="none"
         className="absolute -top-16 -right-16 w-72 h-72 rounded-full bg-[#8c5bf6]/10"
@@ -55,7 +55,7 @@ export default function SignInScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Pressable className="flex-1" onPress={Keyboard.dismiss}>
-          <View className="justify-center flex-1 px-6">
+          <View className="flex-1 justify-center px-6">
             {/* Header */}
             <View className="items-center mb-8">
               <LinearGradient
@@ -115,13 +115,13 @@ export default function SignInScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  className="px-4 text-base leading-5 text-gray-900 border border-gray-200 h-14 rounded-xl"
+                  className="px-4 h-14 text-base leading-5 text-gray-900 rounded-xl border border-gray-200"
                 />
               </View>
 
               {/* Password */}
               <View>
-                <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row justify-between items-center mb-2">
                   <Text className="text-sm font-semibold text-gray-800">Mật khẩu</Text>
 
                   <Pressable>
@@ -139,7 +139,7 @@ export default function SignInScreen() {
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry
                   autoCapitalize="none"
-                  className="px-4 text-base leading-5 text-gray-900 border border-gray-200 h-14 rounded-xl"
+                  className="px-4 h-14 text-base leading-5 text-gray-900 rounded-xl border border-gray-200"
                 />
               </View>
 
@@ -182,7 +182,7 @@ export default function SignInScreen() {
             </View>
 
             {/* Google */}
-            <Pressable className="items-center justify-center bg-white border border-gray-200 h-14 rounded-xl active:bg-gray-50">
+            <Pressable className="justify-center items-center h-14 bg-white rounded-xl border border-gray-200 active:bg-gray-50">
               <Text className="font-semibold text-gray-900">Tiếp tục bằng Google</Text>
             </Pressable>
 
@@ -197,6 +197,6 @@ export default function SignInScreen() {
           </View>
         </Pressable>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }

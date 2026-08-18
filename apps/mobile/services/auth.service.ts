@@ -1,21 +1,7 @@
 import axiosClient from '../api/axiosClient';
-import type { LoginPayload, RegisterPayload } from '@/types/auth';
+import type { LoginPayload, RegisterPayload, LoginResult, RegisterResult } from '@/types/auth';
 import type { ApiResponse } from '@/types/api';
 import type { User } from '@/types/user';
-
-export interface LoginResult {
-  accessToken: string;
-  refreshToken: string;
-  id: string;
-  email: string;
-  username: string;
-}
-
-export interface RegisterResult {
-  id: string;
-  email: string;
-  username: string;
-}
 
 export const authService = {
   login: async (payload: LoginPayload) => {
