@@ -1,4 +1,4 @@
-import axiosClient from '../api/axiosClient';
+import axiosClient from '@/api/axiosClient';
 import type { LoginPayload, RegisterPayload, LoginResult, RegisterResult } from '@/types/auth';
 import type { ApiResponse } from '@/types/api';
 import type { User } from '@/types/user';

@@ -15,7 +15,7 @@ export default function ProfileScreen() {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         logout();
-        router.replace('/signin');
+        router.replace('/(auth)/welcome');
       },
       onError: (error) => {
         console.log(error);
@@ -31,7 +31,7 @@ export default function ProfileScreen() {
         <Text>profile</Text>
         <Pressable
           onPress={handleLogout}
-          className="items-center justify-center bg-white border border-gray-200 h-14 rounded-xl active:bg-gray-50"
+          className="justify-center items-center h-14 bg-white rounded-xl border border-gray-200 active:bg-gray-50"
         >
           <Text>Đăng xuất</Text>
         </Pressable>

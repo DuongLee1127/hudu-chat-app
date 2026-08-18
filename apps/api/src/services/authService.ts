@@ -39,8 +39,8 @@ const authService = {
         bio: user.bio,
       };
 
-      const accessToken = generateToken(payload, jwtAccessToken, '15s');
-      const refreshToken = generateToken(payload, jwtRefreshToken, '30s');
+      const accessToken = generateToken(payload, jwtAccessToken, '1h');
+      const refreshToken = generateToken(payload, jwtRefreshToken, '7d');
 
       // Lưu refresh token vào database hỗ trợ đa thiết bị
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 ngày
@@ -125,7 +125,7 @@ const authService = {
         username: user.username,
       };
 
-      const newAccessToken = generateToken(payload, jwtAccessToken, '15s');
+      const newAccessToken = generateToken(payload, jwtAccessToken, '1h');
 
       return {
         accessToken: newAccessToken,

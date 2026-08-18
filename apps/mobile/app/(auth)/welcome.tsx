@@ -20,7 +20,7 @@ import Animated, {
 const SHEET_DISMISS_THRESHOLD = 80;
 const VELOCITY_THRESHOLD = 400;
 
-export default function IndexScreen() {
+export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const [showAuthSheet, setShowAuthSheet] = useState(false);
 
@@ -196,23 +196,23 @@ export default function IndexScreen() {
           {/* Header */}
           <View>
             <View className="flex-row gap-3 items-center mb-8">
-              <View className="justify-center items-center w-11 h-11 rounded-2xl border shadow-md bg-white/20 border-white/30">
+              <View className="justify-center items-center w-12 h-12 rounded-2xl border shadow-md bg-white/20 border-white/30">
                 <Image
                   source={require('@/assets/images/hudo.png')}
-                  className="w-7 h-7"
+                  className="w-8 h-8"
                   resizeMode="contain"
                 />
               </View>
-              <Text className="text-2xl font-bold tracking-wide text-white">HaloChat</Text>
+              <Text className="text-3xl font-bold tracking-wide text-white">HaloChat</Text>
             </View>
 
             {/* Tiêu đề */}
-            <Text className="mb-3 text-3xl font-extrabold leading-tight text-white">
+            <Text className="mb-3 text-4xl font-extrabold leading-[48px] text-white">
               Trò chuyện liền mạch,{'\n'}kết nối không giới hạn.
             </Text>
 
             {/* Mô tả */}
-            <Text className="text-base leading-relaxed text-white/85">
+            <Text className="text-lg leading-relaxed text-white/90">
               Nhắn tin, chia sẻ và giữ liên lạc với bạn bè, đồng nghiệp mọi lúc mọi nơi.
             </Text>
           </View>
@@ -243,10 +243,10 @@ export default function IndexScreen() {
                     source={{ uri: 'https://i.pravatar.cc/150?img=11' }}
                     className="w-7 h-7 rounded-full border border-purple-200"
                   />
-                  <Text className="text-xs font-bold text-gray-900">Zahri K.</Text>
+                  <Text className="text-sm font-bold text-gray-900">Zahri K.</Text>
                   <View className="ml-auto w-2 h-2 bg-emerald-500 rounded-full" />
                 </View>
-                <Text className="text-xs font-medium leading-4 text-gray-700">
+                <Text className="text-sm font-medium leading-5 text-gray-700">
                   Chào bạn! Hôm nay thế nào rồi? 🎉
                 </Text>
               </Animated.View>
@@ -263,11 +263,11 @@ export default function IndexScreen() {
                     elevation: 6,
                   },
                 ]}
-                className="absolute left-0 top-24 px-4 py-3 bg-white/90 rounded-2xl rounded-tl-xs max-w-[78%]"
+                className="absolute left-0 top-24 px-4 py-3 bg-white/90 rounded-2xl rounded-tl-xs max-w-[85%]"
               >
                 <View className="flex-row gap-2 items-center">
-                  <Ionicons name="sparkles" size={16} color="#7B5CFA" />
-                  <Text className="text-xs font-semibold text-purple-900">
+                  <Ionicons name="sparkles" size={18} color="#7B5CFA" />
+                  <Text className="text-sm font-semibold text-purple-900">
                     Mình vừa gửi tài liệu cho bạn rồi nhé 🚀
                   </Text>
                 </View>
@@ -285,7 +285,7 @@ export default function IndexScreen() {
                     elevation: 10,
                   },
                 ]}
-                className="absolute bottom-2 left-4 px-4 py-3 w-64 bg-white rounded-2xl rounded-bl-xs"
+                className="absolute bottom-2 left-4 px-4 py-3 w-72 bg-white rounded-2xl rounded-bl-xs"
               >
                 <View className="flex-row gap-3 items-center">
                   <Image
@@ -294,10 +294,10 @@ export default function IndexScreen() {
                   />
                   <View className="flex-1">
                     <View className="flex-row justify-between items-center mb-0.5">
-                      <Text className="text-xs font-bold text-gray-900">Minh Thảo</Text>
-                      <Text className="text-[10px] text-gray-400">Vừa xong</Text>
+                      <Text className="text-sm font-bold text-gray-900">Minh Thảo</Text>
+                      <Text className="text-xs text-gray-400">Vừa xong</Text>
                     </View>
-                    <Text className="text-xs font-medium text-gray-700">
+                    <Text className="text-sm font-medium text-gray-700">
                       Tuyệt vời quá! Cảm ơn bạn ❤️
                     </Text>
                   </View>
@@ -310,7 +310,7 @@ export default function IndexScreen() {
           <View className="gap-3">
             <Pressable
               onPress={openSheet}
-              className="items-center py-4 bg-white rounded-full shadow-lg active:opacity-90"
+              className="items-center justify-center h-[56px] bg-white rounded-full shadow-lg active:opacity-90"
               style={{
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 6 },
@@ -319,19 +319,13 @@ export default function IndexScreen() {
                 elevation: 6,
               }}
             >
-              <Text className="text-base font-bold text-[#4F3CC9]">Bắt đầu ngay</Text>
+              <Text className="text-lg font-bold text-[#4F3CC9]">Bắt đầu ngay</Text>
             </Pressable>
-
-            {/* <Pressable onPress={openSheet} className="items-center py-3 active:opacity-70">
-              <Text className="text-sm text-white/90">
-                Đã có tài khoản? <Text className="font-bold text-white underline">Đăng nhập</Text>
-              </Text>
-            </Pressable> */}
           </View>
         </Pressable>
       </LinearGradient>
 
-      {/* Draggable Bottom Sheet Card (Without Dark Overlay Curtain) */}
+      {/* Draggable Bottom Sheet Card */}
       {showAuthSheet && (
         <Animated.View
           style={[
@@ -368,13 +362,13 @@ export default function IndexScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{
-                height: 52,
+                height: 56,
                 borderRadius: 16,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Text className="text-base font-bold text-white">Đăng ký</Text>
+              <Text className="text-lg font-medium text-white">Đăng ký</Text>
             </LinearGradient>
           </Pressable>
 
@@ -384,15 +378,15 @@ export default function IndexScreen() {
               closeSheet();
               router.push('/signin');
             }}
-            className="justify-center items-center h-[52px] bg-white rounded-2xl border border-gray-200 active:bg-gray-50"
+            className="justify-center items-center h-[56px] bg-white rounded-2xl border border-gray-200 active:bg-gray-50 mb-1"
           >
-            <Text className="text-base font-bold text-gray-900">Đăng nhập</Text>
+            <Text className="text-lg font-medium text-gray-900">Đăng nhập</Text>
           </Pressable>
 
           {/* Divider */}
           <View className="flex-row items-center my-5">
             <View className="flex-1 h-px bg-gray-200" />
-            <Text className="mx-3 text-xs font-medium text-gray-400">hoặc tiếp tục với</Text>
+            <Text className="mx-3 text-sm font-normal text-gray-400">hoặc tiếp tục với</Text>
             <View className="flex-1 h-px bg-gray-200" />
           </View>
 
@@ -401,28 +395,19 @@ export default function IndexScreen() {
             {/* Google */}
             <Pressable
               onPress={closeSheet}
-              className="flex-1 flex-row justify-center items-center py-3.5 px-2 bg-white rounded-2xl border border-gray-200 active:bg-gray-50"
+              className="flex-1 flex-row justify-center items-center h-[54px] bg-white rounded-2xl border border-gray-200 active:bg-gray-50"
             >
-              <Ionicons name="logo-google" size={18} color="#EA4335" />
-              <Text className="ml-2 text-sm font-semibold text-gray-900">Google</Text>
+              <Ionicons name="logo-google" size={20} color="#EA4335" />
+              <Text className="ml-2 text-base font-normal text-gray-900">Google</Text>
             </Pressable>
-
-            {/* Apple */}
-            {/* <Pressable
-              onPress={closeSheet}
-              className="flex-1 flex-row justify-center items-center py-3.5 px-2 bg-white rounded-2xl border border-gray-200 active:bg-gray-50"
-            >
-              <Ionicons name="logo-apple" size={20} color="#000000" />
-              <Text className="ml-2 text-sm font-semibold text-gray-900">Apple</Text>
-            </Pressable> */}
 
             {/* Facebook */}
             <Pressable
               onPress={closeSheet}
-              className="flex-1 flex-row justify-center items-center py-3.5 px-2 bg-white rounded-2xl border border-gray-200 active:bg-gray-50"
+              className="flex-1 flex-row justify-center items-center h-[54px] bg-white rounded-2xl border border-gray-200 active:bg-gray-50"
             >
-              <Ionicons name="logo-facebook" size={20} color="#1877F2" />
-              <Text className="ml-2 text-sm font-semibold text-gray-900">Facebook</Text>
+              <Ionicons name="logo-facebook" size={22} color="#1877F2" />
+              <Text className="ml-2 text-base font-normal text-gray-900">Facebook</Text>
             </Pressable>
           </View>
         </Animated.View>

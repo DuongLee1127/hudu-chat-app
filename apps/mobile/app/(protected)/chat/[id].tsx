@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 import { useConversationDetail } from '@/hooks/useConversations';
 import { useGetMe } from '@/hooks/useAuth';
@@ -58,8 +59,8 @@ const formatDateSeparator = (isoDate: string) => {
 function DateSeparator({ label }: { label: string }) {
   return (
     <View className="items-center my-3">
-      <View className="rounded-full bg-[#EBEBEB] px-3 py-1">
-        <Text className="text-[11px] text-[#888]">{label}</Text>
+      <View className="rounded-full bg-[#EBEBEB] px-3.5 py-1">
+        <Text className="text-xs font-medium text-gray-500">{label}</Text>
       </View>
     </View>
   );
@@ -68,8 +69,8 @@ function DateSeparator({ label }: { label: string }) {
 function SystemMessage({ content }: { content: string }) {
   return (
     <View className="items-center my-2">
-      <View className="rounded-full bg-[#EBEBEB] px-3 py-1">
-        <Text className="text-[11px] text-[#888] text-center">{content}</Text>
+      <View className="rounded-full bg-[#EBEBEB] px-3.5 py-1">
+        <Text className="text-xs font-medium text-center text-gray-500">{content}</Text>
       </View>
     </View>
   );
@@ -89,12 +90,12 @@ function MessageBubble({ message, isMe, showSenderInfo }: MessageBubbleProps) {
     <View className={`mb-3 flex-row ${isMe ? 'justify-end' : 'justify-start'}`}>
       {/* Group member avatar */}
       {showSenderInfo && (
-        <View className="justify-end pb-4 mr-2">
+        <View className="justify-end pb-5 mr-2">
           {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} className="w-7 h-7 rounded-full" />
+            <Image source={{ uri: avatarUrl }} className="w-8 h-8 rounded-full" />
           ) : (
-            <View className="h-7 w-7 rounded-full bg-[#0879D1] items-center justify-center">
-              <Text className="text-[11px] font-semibold text-white">
+            <View className="h-8 w-8 rounded-full bg-[#0879D1] items-center justify-center">
+              <Text className="text-xs font-semibold text-white">
                 {message.senderId.username?.charAt(0).toUpperCase() || 'U'}
               </Text>
             </View>
@@ -102,27 +103,27 @@ function MessageBubble({ message, isMe, showSenderInfo }: MessageBubbleProps) {
         </View>
       )}
 
-      <View className={`max-w-[78%] ${isMe ? 'items-end' : 'items-start'}`}>
+      <View className={`max-w-[82%] ${isMe ? 'items-end' : 'items-start'}`}>
         {/* Sender name in group */}
         {showSenderInfo && (
-          <Text className="mb-0.5 text-[11px] text-[#888]">{message.senderId.username}</Text>
+          <Text className="mb-1 text-xs font-medium text-gray-500">
+            {message.senderId.username}
+          </Text>
         )}
 
         {/* Reply preview */}
         {message.replyToMessageId && !message.isDeleted && (
           <View
-            className={`mb-1 rounded-lg px-3 py-1.5 border-l-2 ${
-              isMe ? 'bg-[#0667B3] border-white/60' : 'bg-[#f0f0f0] border-[#0879D1]'
+            className={`mb-1.5 rounded-xl px-3.5 py-2 border-l-3 ${
+              isMe ? 'bg-[#0667B3] border-white/80' : 'bg-[#EAEAEA] border-[#0879D1]'
             }`}
           >
-            <Text
-              className={`text-[11px] font-semibold ${isMe ? 'text-white/85' : 'text-[#0879D1]'}`}
-            >
+            <Text className={`text-xs font-semibold ${isMe ? 'text-white' : 'text-[#0879D1]'}`}>
               {message.replyToMessageId.senderId.username}
             </Text>
             <Text
               numberOfLines={1}
-              className={`text-[11px] ${isMe ? 'text-white/70' : 'text-[#666]'} ${
+              className={`text-xs ${isMe ? 'text-white/80' : 'text-gray-600'} ${
                 message.replyToMessageId.isDeleted ? 'italic' : ''
               }`}
             >
@@ -133,28 +134,28 @@ function MessageBubble({ message, isMe, showSenderInfo }: MessageBubbleProps) {
           </View>
         )}
 
-        {/* Main bubble */}
+        {/* Main bubble với cỡ chữ to dễ đọc */}
         <View
           className={`rounded-2xl px-4 py-2.5 ${
-            isMe ? 'rounded-br-md bg-[#0879D1]' : 'rounded-bl-md bg-white'
+            isMe ? 'rounded-br-xs bg-[#0879D1]' : 'rounded-bl-xs bg-white'
           }`}
           style={{
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.06,
+            shadowOpacity: 0.08,
             shadowRadius: 4,
-            elevation: 1,
+            elevation: 1.5,
           }}
         >
           <Text
-            className={`text-[13px] leading-5 ${
+            className={`text-base leading-6 font-normal ${
               message.isDeleted
                 ? isMe
-                  ? 'italic text-white/70'
-                  : 'italic text-[#999]'
+                  ? 'italic text-white/75'
+                  : 'italic text-gray-400'
                 : isMe
                   ? 'text-white'
-                  : 'text-[#222]'
+                  : 'text-gray-900'
             }`}
           >
             {message.isDeleted ? 'Tin nhắn đã được thu hồi' : message.content}
@@ -163,8 +164,8 @@ function MessageBubble({ message, isMe, showSenderInfo }: MessageBubbleProps) {
 
         {/* Timestamp / status */}
         <Text
-          className={`mt-0.5 text-[10px] ${
-            message.status === 'failed' ? 'text-red-400' : 'text-[#aaa]'
+          className={`mt-1 text-[11px] ${
+            message.status === 'failed' ? 'text-red-500 font-medium' : 'text-gray-400'
           } ${isMe ? 'text-right' : 'text-left'}`}
         >
           {message.status === 'sending' && 'Đang gửi...'}
@@ -281,6 +282,7 @@ export default function ChatDetailScreen() {
   const handleSend = useCallback(() => {
     const text = draft.trim();
     if (!text) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setDraft('');
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     if (id) stopTyping(id);
@@ -303,21 +305,27 @@ export default function ChatDetailScreen() {
     [currentUserId, isGroup],
   );
 
+  const handleBackPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    router.back();
+  };
+
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-[#F4F5FB]"
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
     >
       {/* ── HEADER ── */}
       <View className="border-b border-[#EEEEEE] bg-white px-4 pb-3">
-        <View className="h-[55px] flex-row items-center">
-          {/* Back */}
+        <View className="h-[58px] flex-row items-center">
+          {/* Back Button với phản hồi rung haptic */}
           <Pressable
-            onPress={() => router.back()}
-            className="justify-center items-center mr-3 w-8 h-10"
+            onPress={handleBackPress}
+            className="justify-center items-center mr-2.5 w-9 h-10 rounded-full active:bg-gray-100"
             hitSlop={10}
           >
-            <Ionicons name="chevron-back" size={27} color="#222" />
+            <Ionicons name="chevron-back" size={28} color="#1F2937" />
           </Pressable>
 
           {/* Avatar */}
@@ -325,42 +333,50 @@ export default function ChatDetailScreen() {
             <Image source={{ uri: avatarUrl }} className="w-11 h-11 rounded-full" />
           ) : (
             <View className="h-11 w-11 rounded-full bg-[#0879D1] items-center justify-center">
-              <Text className="text-lg font-semibold text-white">
+              <Text className="text-xl font-bold text-white">
                 {displayName.charAt(0).toUpperCase()}
               </Text>
             </View>
           )}
 
-          {/* Info */}
+          {/* User / Group Info với chữ to rõ */}
           <View className="flex-1 ml-3">
-            <Text className="text-[14px] font-semibold text-[#171717]" numberOfLines={1}>
+            <Text className="text-base font-bold text-gray-900" numberOfLines={1}>
               {convLoading ? '...' : displayName}
             </Text>
 
             {convLoading ? null : isOtherTyping ? (
-              <Text className="text-[11px] text-[#0879D1] italic">Đang nhập...</Text>
+              <Text className="text-xs text-[#0879D1] italic font-medium">Đang nhập...</Text>
             ) : isGroup ? (
-              <Text className="text-[11px] text-[#888]">{members.length} thành viên</Text>
+              <Text className="text-xs text-gray-500">{members.length} thành viên</Text>
             ) : (
               <View className="mt-0.5 flex-row items-center">
                 <View
-                  className={`mr-1 h-1.5 w-1.5 rounded-full ${
-                    isOtherOnline ? 'bg-[#57C95B]' : 'bg-[#CCC]'
+                  className={`mr-1.5 h-2 w-2 rounded-full ${
+                    isOtherOnline ? 'bg-[#57C95B]' : 'bg-gray-300'
                   }`}
                 />
-                <Text className={`text-[11px] ${isOtherOnline ? 'text-[#57B957]' : 'text-[#999]'}`}>
+                <Text
+                  className={`text-xs font-normal ${isOtherOnline ? 'text-[#34A853]' : 'text-gray-400'}`}
+                >
                   {isOtherOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Actions */}
-          <Pressable className="justify-center items-center mr-2 w-8 h-10" hitSlop={8}>
-            <Ionicons name="videocam-outline" size={22} color="#555" />
+          {/* Call Actions */}
+          <Pressable
+            className="justify-center items-center mr-1 w-9 h-10 rounded-full active:bg-gray-100"
+            hitSlop={8}
+          >
+            <Ionicons name="videocam-outline" size={24} color="#4B5563" />
           </Pressable>
-          <Pressable className="justify-center items-center w-8 h-10" hitSlop={8}>
-            <Ionicons name="call-outline" size={22} color="#555" />
+          <Pressable
+            className="justify-center items-center w-9 h-10 rounded-full active:bg-gray-100"
+            hitSlop={8}
+          >
+            <Ionicons name="call-outline" size={23} color="#4B5563" />
           </Pressable>
         </View>
       </View>
@@ -372,7 +388,9 @@ export default function ChatDetailScreen() {
         </View>
       ) : messages.length === 0 ? (
         <View className="flex-1 justify-center items-center">
-          <Text className="text-[13px] text-[#aaa]">Chưa có tin nhắn nào. Hãy gửi lời chào!</Text>
+          <Text className="text-base font-normal text-gray-400">
+            Chưa có tin nhắn nào. Hãy gửi lời chào! 👋
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -380,7 +398,7 @@ export default function ChatDetailScreen() {
           data={listItems}
           keyExtractor={(item) => item.key}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
@@ -389,21 +407,24 @@ export default function ChatDetailScreen() {
       )}
 
       {/* ── INPUT ── */}
-      <View className="px-4 pt-2 bg-white" style={{ paddingBottom: Math.max(insets.bottom, 10) }}>
-        <View className="min-h-[60px] flex-row items-center rounded-full bg-[#F2F4F7] px-2">
+      <View
+        className="px-4 pt-2.5 pb-2.5 bg-white"
+        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+      >
+        <View className="min-h-[58px] flex-row items-center rounded-full bg-[#F2F4F7] px-3 py-1">
           {/* Emoji */}
-          <Pressable className="justify-center items-center w-10 h-10">
-            <Ionicons name="happy-outline" size={23} color="#777" />
+          <Pressable className="justify-center items-center w-10 h-10 rounded-full active:bg-gray-200">
+            <Ionicons name="happy-outline" size={25} color="#6B7280" />
           </Pressable>
 
           {/* Divider */}
           <View className="mx-1 h-6 w-[1px] bg-[#DADDE2]" />
 
-          {/* Input */}
+          {/* Input với cỡ chữ to rõ text-lg */}
           <TextInput
-            className="flex-1 px-2 text-[13px] text-[#222]"
+            className="flex-1 px-2.5 text-base font-normal leading-6 text-gray-900"
             placeholder="Nhập tin nhắn..."
-            placeholderTextColor="#A7ADB7"
+            placeholderTextColor="#9CA3AF"
             value={draft}
             onChangeText={handleDraftChange}
             multiline
@@ -411,22 +432,22 @@ export default function ChatDetailScreen() {
           />
 
           {/* Mic */}
-          <Pressable className="justify-center items-center w-10 h-10">
-            <Ionicons name="mic-outline" size={22} color="#777" />
+          <Pressable className="justify-center items-center w-10 h-10 rounded-full active:bg-gray-200">
+            <Ionicons name="mic-outline" size={24} color="#6B7280" />
           </Pressable>
 
           {/* Send */}
           <Pressable
             onPress={handleSend}
             disabled={!draft.trim() || sendMutation.isPending}
-            className={`h-[40px] w-[40px] items-center justify-center rounded-full ${
+            className={`h-[44px] w-[44px] items-center justify-center rounded-full active:opacity-80 ${
               draft.trim() ? 'bg-[#0879D1]' : 'bg-[#C8C8D8]'
             }`}
           >
             {sendMutation.isPending ? (
               <ActivityIndicator size="small" color="white" />
             ) : (
-              <Ionicons name="send" size={18} color="white" />
+              <Ionicons name="send" size={20} color="white" />
             )}
           </Pressable>
         </View>

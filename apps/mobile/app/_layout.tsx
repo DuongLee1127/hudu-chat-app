@@ -1,4 +1,3 @@
-import { View } from 'react-native';
 import { Slot } from 'expo-router';
 
 import QueryClientProvider from '@/providers/QueryProvider';
@@ -11,9 +10,7 @@ export default function RootLayout() {
     <QueryClientProvider>
       <SocketProvider>
         {/* <ScreenWrapper> */}
-        <View className="flex-1 bg-white">
-          <Slot />
-        </View>
+        <Slot />
         {/* </ScreenWrapper> */}
       </SocketProvider>
     </QueryClientProvider>
