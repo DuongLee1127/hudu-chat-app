@@ -130,9 +130,42 @@ const conversationService = {
         memberships.map((m) => [String(m.conversationId), m.lastReadMessageId]),
       );
 
-      const filter: any = { _id: { $in: conversationIds } };
-      if (q) {
-        filter.name = { $regex: q, $options: 'i' };
+      let filter: any = { _id: { $in: conversationIds } };
+      if (q && q.trim()) {
+        const queryRegex = { $regex: q.trim(), $options: 'i' };
+
+        // 1. Find users whose username matches query
+        const matchingUsers = await User.find({ username: queryRegex }).select('_id');
+        const matchingUserIds = matchingUsers.map((u) => u._id);
+
+        // 2. Find private conversations containing any matching user
+        const matchingMemberships = matchingUserIds.length
+          ? await ConversationMember.find({
+              conversationId: { $in: conversationIds },
+              userId: { $in: matchingUserIds },
+            }).select('conversationId')
+          : [];
+        const matchingConvIdsFromUsers = matchingMemberships.map((m) => m.conversationId);
+
+        // 3. Find messages matching content
+        const matchingMessages = await Message.find({
+          conversationId: { $in: conversationIds },
+          content: queryRegex,
+          isDeleted: false,
+        }).select('conversationId');
+        const matchingConvIdsFromMessages = matchingMessages.map((m) => m.conversationId);
+
+        const matchedConvIds = Array.from(
+          new Set([
+            ...matchingConvIdsFromUsers.map(String),
+            ...matchingConvIdsFromMessages.map(String),
+          ]),
+        );
+
+        filter = {
+          _id: { $in: conversationIds },
+          $or: [{ name: queryRegex }, { _id: { $in: matchedConvIds } }],
+        };
       }
 
       const skip = (page - 1) * pageSize;
@@ -145,9 +178,7 @@ const conversationService = {
         Conversation.countDocuments(filter),
       ]);
 
-      const privateConversationIds = items
-        .filter((c) => c.type === 'private')
-        .map((c) => c._id);
+      const privateConversationIds = items.filter((c) => c.type === 'private').map((c) => c._id);
 
       const otherMembers = privateConversationIds.length
         ? await ConversationMember.find({

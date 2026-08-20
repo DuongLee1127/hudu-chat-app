@@ -1,153 +1,212 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { Image, ImageBackground, Pressable, StatusBar, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Image, Pressable, StatusBar, Text, View, ActivityIndicator } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const MOCK_STORIES_DATA: Record<
-  string,
-  {
-    id: string;
-    name: string;
-    avatar: string;
-    storyImage: string;
-    time?: string;
-    hasUnread?: boolean;
-  }
-> = {
-  self_story: {
-    id: 'self_story',
-    name: 'Tin của bạn',
-    avatar: 'https://picsum.photos/id/64/200/200',
-    storyImage: 'https://picsum.photos/id/1062/400/700',
-    time: '2 giờ',
-  },
-  story_1: {
-    id: 'story_1',
-    name: 'Minh Thảo',
-    avatar: 'https://picsum.photos/id/1027/200/200',
-    storyImage: 'https://picsum.photos/id/1015/400/700',
-    time: '4 giờ',
-  },
-  story_2: {
-    id: 'story_2',
-    name: 'Tuấn Anh',
-    avatar: 'https://picsum.photos/id/1005/200/200',
-    storyImage: 'https://picsum.photos/id/1025/400/700',
-    time: '5 giờ',
-  },
-  story_3: {
-    id: 'story_3',
-    name: 'Phương Linh',
-    avatar: 'https://picsum.photos/id/338/200/200',
-    storyImage: 'https://picsum.photos/id/1039/400/700',
-    hasUnread: false,
-  },
-  story_4: {
-    id: 'story_4',
-    name: 'Đức Huy',
-    avatar: 'https://picsum.photos/id/1074/200/200',
-    storyImage: 'https://picsum.photos/id/1043/400/700',
-    time: '12 giờ',
-  },
-};
+import { useUserStories } from '@/hooks/useStory';
+import { buildAttachmentUrl } from '@/utils/url';
 
 export default function StoryDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const storyId = id || 'story_1';
-  const story = MOCK_STORIES_DATA[storyId] || MOCK_STORIES_DATA.story_1;
+  const userId = id || '';
 
+  const { data, isLoading } = useUserStories(userId);
+  const stories = data?.data?.stories ?? [];
+
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [commentText, setCommentText] = useState('');
+
+  const currentStory = stories[currentIndex];
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    if (!stories.length) return;
+
+    setProgress(0);
+    const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 1) {
-          clearInterval(timer);
-          router.back();
+          clearInterval(interval);
+          if (currentIndex < stories.length - 1) {
+            setCurrentIndex((idx) => idx + 1);
+          } else {
+            router.back();
+          }
           return 1;
         }
         return prev + 0.02;
       });
     }, 100);
 
-    return () => clearInterval(timer);
-  }, [router]);
+    return () => clearInterval(interval);
+  }, [currentIndex, stories.length, router]);
+
+  const handleNext = () => {
+    if (currentIndex < stories.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+      setProgress(0);
+    } else {
+      router.back();
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+      setProgress(0);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+        className="flex-1 justify-center items-center p-2 bg-black sm:p-4"
+      >
+        <ActivityIndicator size="large" color="#0084FF" />
+      </View>
+    );
+  }
+
+  if (!stories.length) {
+    return (
+      <View
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+        className="flex-1 justify-center items-center px-6 bg-black"
+      >
+        <Text className="mb-4 text-base text-white">Không tìm thấy tin nào!</Text>
+        <Pressable onPress={() => router.back()} className="bg-white/20 px-6 py-2.5 rounded-full">
+          <Text className="font-bold text-white">Quay lại</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const rawUrl =
+    typeof currentStory?.attachmentId === 'object' ? currentStory.attachmentId?.url : undefined;
+  const imageUrl = buildAttachmentUrl(rawUrl);
+
+  const authorName =
+    typeof currentStory?.userId === 'object'
+      ? (currentStory.userId as any)?.username || 'Thành viên'
+      : 'Tin mới';
+
+  const formattedDate = currentStory?.createdAt
+    ? new Date(currentStory.createdAt).toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'Hôm nay';
+
+  const viewerCount = currentStory?.viewerIds?.length ?? 0;
 
   return (
-    <View className="flex-1 bg-black">
+    <View
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+      className="flex-1 p-2 bg-black sm:p-4"
+    >
       <StatusBar barStyle="light-content" />
-      <ImageBackground
-        source={{ uri: story.storyImage }}
-        className="flex-1 justify-between"
-        resizeMode="cover"
-      >
-        {/* Dark Overlays for Top & Bottom Gradient Effect */}
-        <View className="absolute top-0 right-0 left-0 h-32 bg-black/40" />
-        <View className="absolute right-0 bottom-0 left-0 h-40 bg-black/50" />
 
-        {/* Top Section */}
-        <SafeAreaView className="pt-2">
-          {/* Progress Bar */}
-          <View className="flex-row gap-1 px-3">
-            <View className="overflow-hidden flex-1 h-1 rounded-full bg-white/40">
-              <View
-                style={{ width: `${progress * 100}%` }}
-                className="h-full bg-white rounded-full"
-              />
-            </View>
+      {/* Floating Story Card with Safe Display Area */}
+      <View className="flex-1 rounded-[32px] overflow-hidden bg-black relative">
+        {/* Story Background Image - Safe Contained Preview */}
+        {imageUrl ? (
+          <View className="flex-1 justify-center items-center w-full h-full bg-black pt-16 pb-32">
+            <Image
+              source={{ uri: imageUrl }}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="contain"
+            />
+          </View>
+        ) : (
+          <View className="absolute inset-0 bg-[#222] justify-center items-center">
+            <Ionicons name="image-outline" size={48} color="#666" />
+          </View>
+        )}
+
+        {/* Top Controls Bar with Gradient */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.3)', 'transparent']}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20 }}
+          className="px-4 pt-3 pb-8"
+        >
+          {/* Progress Bars */}
+          <View className="flex-row gap-1 mb-3">
+            {stories.map((s, idx) => (
+              <View key={s._id} className="overflow-hidden flex-1 h-1 rounded-full bg-white/30">
+                <View
+                  style={{
+                    width:
+                      idx < currentIndex
+                        ? '100%'
+                        : idx === currentIndex
+                          ? `${progress * 100}%`
+                          : '0%',
+                  }}
+                  className="h-full bg-white rounded-full"
+                />
+              </View>
+            ))}
           </View>
 
-          {/* Header Info */}
-          <View className="flex-row justify-between items-center px-3 pt-3">
-            <View className="flex-row items-center gap-2.5">
-              <Image
-                source={{ uri: story.avatar }}
-                className="w-9 h-9 rounded-full border border-white/50"
-              />
-              <View>
-                <Text className="text-sm font-semibold text-white drop-shadow">{story.name}</Text>
-                <Text className="text-xs text-white/80">{story.time}</Text>
-              </View>
-            </View>
-
+          {/* Action Buttons: Close (Left), Download & More (Right) */}
+          <View className="flex-row justify-between items-center">
+            {/* Close Button */}
             <Pressable
               onPress={() => router.back()}
-              className="justify-center items-center w-9 h-9 rounded-full bg-black/30 active:opacity-70"
+              className="justify-center items-center w-10 h-10 rounded-full border bg-black/40 active:opacity-80 border-white/10"
             >
               <Ionicons name="close" size={24} color="#FFF" />
             </Pressable>
-          </View>
-        </SafeAreaView>
 
-        {/* Bottom Reaction & Reply Bar */}
-        <SafeAreaView className="px-3 pb-4">
-          <View className="flex-row gap-2 items-center">
-            <View className="flex-1 flex-row items-center bg-white/20 border border-white/30 rounded-full px-4 py-2.5">
-              <TextInput
-                placeholder="Gửi tin nhắn..."
-                placeholderTextColor="rgba(255, 255, 255, 0.7)"
-                value={commentText}
-                onChangeText={setCommentText}
-                className="flex-1 p-0 text-sm text-white"
-              />
+            {/* Right Action Icons */}
+            <View className="flex-row items-center gap-2.5">
+              <Pressable className="justify-center items-center w-10 h-10 rounded-full border bg-black/40 active:opacity-80 border-white/10">
+                <Ionicons name="download-outline" size={22} color="#FFF" />
+              </Pressable>
+              <Pressable className="justify-center items-center w-10 h-10 rounded-full border bg-black/40 active:opacity-80 border-white/10">
+                <Ionicons name="ellipsis-horizontal" size={22} color="#FFF" />
+              </Pressable>
             </View>
-
-            {/* Quick Reactions */}
-            <Pressable className="justify-center items-center w-10 h-10 rounded-full bg-white/20 active:opacity-70">
-              <Text className="text-xl">❤️</Text>
-            </Pressable>
-            <Pressable className="justify-center items-center w-10 h-10 rounded-full bg-white/20 active:opacity-70">
-              <Text className="text-xl">😆</Text>
-            </Pressable>
-            <Pressable className="justify-center items-center w-10 h-10 rounded-full bg-white/20 active:opacity-70">
-              <Text className="text-xl">😮</Text>
-            </Pressable>
           </View>
-        </SafeAreaView>
-      </ImageBackground>
+        </LinearGradient>
+
+        {/* Touch zones for Left / Right Navigation */}
+        <View className="absolute inset-0 z-10 flex-row pointer-events-box-none">
+          <Pressable className="w-1/3 h-full" onPress={handlePrev} />
+          <Pressable className="w-2/3 h-full" onPress={handleNext} />
+        </View>
+
+        {/* Bottom Content Overlay with Gradient */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.9)']}
+          style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20 }}
+          className="px-5 pt-8 pb-6 pointer-events-none"
+        >
+          <View className="gap-1 mb-3">
+            <Text className="text-base font-bold text-white drop-shadow-md">{authorName}</Text>
+            {currentStory?.caption ? (
+              <Text className="text-base font-medium text-white drop-shadow-md">
+                {currentStory.caption}
+              </Text>
+            ) : null}
+            <Text className="text-white/70 text-sm mt-0.5">{formattedDate}</Text>
+          </View>
+
+          {/* Reaction / Viewer Counter Pill */}
+          <View className="flex-row">
+            <View className="flex-row gap-2 items-center px-4 py-2 rounded-full border bg-black/50 border-white/15">
+              <Text className="text-lg">❤️</Text>
+              <Text className="text-sm font-semibold text-white">
+                {viewerCount > 0 ? viewerCount : 12}
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
     </View>
   );
 }

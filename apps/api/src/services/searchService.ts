@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import Message from '@/models/message';
 import Conversation from '@/models/conversation';
 import ConversationMember from '@/models/conversation_member';
-import userService from '@/services/userService';
+import friendService from '@/services/friendService';
 import { assertMember } from '@/services/membershipService';
 
 const clampLimit = (limit?: number, max: number = 50, fallback: number = 20) =>
@@ -82,16 +82,66 @@ const searchService = {
         return { users: [], conversations: [], messages: [] };
       }
 
-      const [usersResult, conversationsResult, messagesResult] = await Promise.all([
-        userService.searchUsers(userId, keyword, 1, 5),
-        searchService.searchConversations(userId, keyword, 5),
-        searchService.searchMessages(userId, { q: keyword, limit: 5 }),
-      ]);
+      const regex = { $regex: keyword, $options: 'i' };
+
+      // 1. Search Accepted Friends only
+      const friendsResult = await friendService.getFriends(userId, keyword, 1, 10);
+      const foundUserIds = friendsResult.items.map((u) => String(u._id));
+
+      // Find existing private conversations between current user and found friends
+      const myMemberships = await ConversationMember.find({ userId }).select('conversationId');
+      const myConvIds = myMemberships.map((m) => m.conversationId);
+
+      const privateConvs = myConvIds.length
+        ? await Conversation.find({ _id: { $in: myConvIds }, type: 'private' }).select('_id')
+        : [];
+      const privateConvIds = privateConvs.map((c) => c._id);
+
+      const existingMemberships =
+        privateConvIds.length && foundUserIds.length
+          ? await ConversationMember.find({
+              conversationId: { $in: privateConvIds },
+              userId: { $in: foundUserIds },
+            })
+          : [];
+
+      const convIdByUserId = new Map(
+        existingMemberships.map((m) => [String(m.userId), String(m.conversationId)]),
+      );
+
+      const enrichedUsers = friendsResult.items.map((u) => ({
+        ...u.toObject(),
+        conversationId: convIdByUserId.get(String(u._id)) || null,
+      }));
+
+      // 2. Search Group Conversations
+      const groupConvs = myConvIds.length
+        ? await Conversation.find({
+            _id: { $in: myConvIds },
+            type: 'group',
+            name: regex,
+          })
+            .sort({ lastMessageAt: -1 })
+            .limit(10)
+        : [];
+
+      // 3. Search Messages (fallback to regex search for max reliability)
+      const messages = myConvIds.length
+        ? await Message.find({
+            conversationId: { $in: myConvIds },
+            isDeleted: false,
+            content: regex,
+          })
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .populate({ path: 'senderId', select: '_id username avatar' })
+            .populate({ path: 'conversationId', select: '_id name type avatar' })
+        : [];
 
       return {
-        users: usersResult.items,
-        conversations: conversationsResult.items,
-        messages: messagesResult.items,
+        users: enrichedUsers,
+        conversations: groupConvs,
+        messages,
       };
     } catch (error) {
       throw error;

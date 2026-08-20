@@ -317,7 +317,7 @@ export default function ChatDetailScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
     >
       {/* ── HEADER ── */}
-      <View className="border-b border-[#EEEEEE] bg-white px-4 pb-3">
+      <View className="border-b border-[#EEEEEE] bg-white px-4">
         <View className="h-[58px] flex-row items-center">
           {/* Back Button với phản hồi rung haptic */}
           <Pressable
@@ -407,10 +407,7 @@ export default function ChatDetailScreen() {
       )}
 
       {/* ── INPUT ── */}
-      <View
-        className="px-4 pt-2.5 pb-2.5 bg-white"
-        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-      >
+      <View className="px-4 pt-2.5 pb-2.5 bg-white" style={{ paddingBottom: insets.bottom }}>
         <View className="min-h-[58px] flex-row items-center rounded-full bg-[#F2F4F7] px-3 py-1">
           {/* Emoji */}
           <Pressable className="justify-center items-center w-10 h-10 rounded-full active:bg-gray-200">

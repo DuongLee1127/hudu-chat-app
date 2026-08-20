@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { useState, useMemo } from 'react';
+import { Pressable, Text, View, ScrollView } from 'react-native';
 import Animated, {
   Extrapolation,
   FadeInDown,
@@ -12,11 +12,16 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 
 import ChatItem from '@/components/ChatItem';
 import StoryItem from '@/components/StoryItem';
 import SearchInput from '@/components/SearchInput';
+import SearchOverlayModal from '@/components/SearchOverlayModal';
+import CreateStoryModal from '@/components/CreateStoryModal';
 import { useListConversations } from '@/hooks/useConversations';
+import { useStoryFeed } from '@/hooks/useStory';
+import { useAuthStore } from '@/stores/auth';
 import type { ConversationListItem } from '@/types/conversation';
 
 // Animated badge with spring scale on press
@@ -63,52 +68,39 @@ const AnimatedChatItem = ({ item, index }: { item: ConversationListItem; index: 
   </Animated.View>
 );
 
-type Story = {
-  id: string;
-  name: string;
-  avatar: string;
-  hasStory?: boolean;
-};
-
 type FilterType = 'all' | 'unread' | 'group';
 
 const LIST_PARAMS = { page: 1, pageSize: 50 };
 
-const stories: Story[] = [
-  {
-    id: '1',
-    name: 'My Status',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-    hasStory: true,
-  },
-  {
-    id: '2',
-    name: 'Zahri K.',
-    avatar: 'https://i.pravatar.cc/150?img=11',
-    hasStory: true,
-  },
-  {
-    id: '3',
-    name: 'Hodden',
-    avatar: 'https://i.pravatar.cc/150?img=13',
-    hasStory: true,
-  },
-  {
-    id: '4',
-    name: 'Peter R.',
-    avatar: 'https://i.pravatar.cc/150?img=14',
-  },
-  {
-    id: '5',
-    name: 'Salma',
-    avatar: 'https://i.pravatar.cc/150?img=16',
-  },
-];
-
 export default function ChatScreen() {
-  const { data } = useListConversations(LIST_PARAMS);
+  const router = useRouter();
+  const currentUser = useAuthStore((state) => state.user);
 
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+
+  const { data } = useListConversations(LIST_PARAMS);
+  const { data: feedData } = useStoryFeed();
+
+  const storyFeed = feedData?.data?.feed ?? [];
+
+  // Separate user's own story group vs friends' story groups
+  const { myStoryGroup, friendStoryGroups } = useMemo(() => {
+    const currentUsername = currentUser?.username;
+    let myGroup = null;
+    const friendsGroups = [];
+
+    for (const group of storyFeed) {
+      if (currentUsername && group.user?.username === currentUsername) {
+        myGroup = group;
+      } else {
+        friendsGroups.push(group);
+      }
+    }
+
+    return { myStoryGroup: myGroup, friendStoryGroups: friendsGroups };
+  }, [storyFeed, currentUser?.username]);
 
   const filteredConversations = useMemo(() => {
     const list = data?.data.items ?? [];
@@ -139,6 +131,14 @@ export default function ChatScreen() {
     setActiveFilter(filter);
   };
 
+  const handleOpenUserStories = (userId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    router.push({
+      pathname: '/story/[id]',
+      params: { id: userId },
+    });
+  };
+
   return (
     <View className="flex-1">
       <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -147,14 +147,16 @@ export default function ChatScreen() {
       <View className="flex-1 rounded-b-[32px] bg-white">
         <View className="flex-row justify-between px-3 pt-2 pb-4">
           <Text className="text-3xl font-bold">Chat</Text>
-          <View className="flex-row gap-4 items-center">
-            <Ionicons name="camera-outline" size={28} color="#1A1A1A" />
+          {/* <View className="flex-row gap-4 items-center">
+            <Pressable onPress={() => setIsCreateStoryOpen(true)}>
+              <Ionicons name="camera-outline" size={28} color="#1A1A1A" />
+            </Pressable>
             <Ionicons name="create-outline" size={28} color="#1A1A1A" />
-          </View>
+          </View> */}
         </View>
 
-        <View className="px-3">
-          <SearchInput />
+        <View className="px-3 pb-2">
+          <SearchInput onPress={() => setIsSearchOpen(true)} />
         </View>
 
         {/* Conversation List with Story Header & Filter Badges */}
@@ -170,18 +172,41 @@ export default function ChatScreen() {
           ListHeaderComponent={
             <View>
               <Animated.View style={[{ overflow: 'hidden' }, storyAnimatedStyle]}>
-                <View className="pt-6">
-                  <FlatList
-                    data={stories}
+                <View className="pt-6 pl-3">
+                  <ScrollView
                     horizontal
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item, index }) => (
-                      <View className={index === 0 ? 'ml-3' : 'ml-0'}>
-                        <StoryItem item={item} />
-                      </View>
-                    )}
                     showsHorizontalScrollIndicator={false}
-                  />
+                    className="flex-row"
+                  >
+                    {/* Bubble 1: Add Story (Tạo tin) */}
+                    <StoryItem
+                      isAddStory
+                      name="Tạo tin"
+                      avatar={currentUser?.avatar}
+                      onPress={() => setIsCreateStoryOpen(true)}
+                    />
+
+                    {/* Bubble 2: My Story (if active stories exist) */}
+                    {myStoryGroup && (
+                      <StoryItem
+                        name="Tin của bạn"
+                        avatar={myStoryGroup.user?.avatar || currentUser?.avatar}
+                        hasUnread={myStoryGroup.hasUnviewed}
+                        onPress={() => handleOpenUserStories(myStoryGroup.userId)}
+                      />
+                    )}
+
+                    {/* Bubble 3+: Friends' Stories */}
+                    {friendStoryGroups.map((group) => (
+                      <StoryItem
+                        key={group.userId}
+                        name={group.user?.username || 'Bạn bè'}
+                        avatar={group.user?.avatar || ''}
+                        hasUnread={group.hasUnviewed}
+                        onPress={() => handleOpenUserStories(group.userId)}
+                      />
+                    ))}
+                  </ScrollView>
                 </View>
               </Animated.View>
 
@@ -210,6 +235,12 @@ export default function ChatScreen() {
             flexGrow: 1,
           }}
         />
+
+        {/* Messenger-style full-screen search overlay */}
+        <SearchOverlayModal visible={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+        {/* Reusable Create Story Modal */}
+        <CreateStoryModal visible={isCreateStoryOpen} onClose={() => setIsCreateStoryOpen(false)} />
       </View>
     </View>
   );

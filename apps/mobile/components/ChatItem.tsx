@@ -66,7 +66,7 @@ export default function ChatItem({ item, currentUserId }: ChatItemProps) {
 
   return (
     <Pressable
-      className="w-full flex-row py-3.5 active:bg-[#F5F6F8] px-3"
+      className="w-full flex-row py-3 active:bg-[#F5F6F8] px-3"
       android_ripple={{ color: '#F5F6F8' }}
       onPress={handlePress}
     >
