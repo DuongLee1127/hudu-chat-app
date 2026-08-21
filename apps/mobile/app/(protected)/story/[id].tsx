@@ -114,7 +114,7 @@ export default function StoryDetailScreen() {
       <View className="flex-1 rounded-[32px] overflow-hidden bg-black relative">
         {/* Story Background Image - Safe Contained Preview */}
         {imageUrl ? (
-          <View className="flex-1 justify-center items-center w-full h-full bg-black pt-16 pb-32">
+          <View className="flex-1 justify-center items-center pt-16 pb-32 w-full h-full bg-black">
             <Image
               source={{ uri: imageUrl }}
               style={{ width: '100%', height: '100%' }}

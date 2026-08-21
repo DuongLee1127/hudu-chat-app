@@ -16,7 +16,7 @@ export default function ScreenWrapper({
   statusBarStyle = 'dark',
 }: ScreenWrapperProps) {
   return (
-    <SafeAreaView className={`flex-1 bg-white ${className}`} edges={edges}>
+    <SafeAreaView className={`flex-1 ${className}`} edges={edges}>
       <StatusBar style={statusBarStyle} />
       {children}
     </SafeAreaView>

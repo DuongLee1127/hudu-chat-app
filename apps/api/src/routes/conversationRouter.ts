@@ -582,14 +582,10 @@ router.get('/:id/active-call', authMiddleware, callController.getActiveCall);
  */
 
 router.get('/:id/attachments', authMiddleware, conversationController.listAttachments);
+router.get('/:id/pinned-messages', authMiddleware, messageController.getPinnedMessages);
 
 router.get('/:id/messages', authMiddleware, messageController.listMessages);
-router.post(
-  '/:id/messages',
-  authMiddleware,
-  sendMessageRateLimiter,
-  messageController.sendMessage,
-);
+router.post('/:id/messages', authMiddleware, sendMessageRateLimiter, messageController.sendMessage);
 router.post('/:id/read', authMiddleware, messageController.markAsRead);
 router.get('/:id/unread-count', authMiddleware, messageController.getUnreadCount);
 

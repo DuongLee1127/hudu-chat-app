@@ -126,7 +126,7 @@ export default function SignUpScreen() {
       if (router.canGoBack()) {
         router.back();
       } else {
-        router.replace('/(auth)');
+        router.replace('/(auth)/welcome');
       }
     }
   };

@@ -9,6 +9,9 @@ export interface IMessage extends Document {
   replyToMessageId?: mongoose.Types.ObjectId;
   isEdited: boolean;
   isDeleted: boolean;
+  isPinned: boolean;
+  pinnedAt?: Date;
+  pinnedById?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +55,17 @@ const MessageSchema: Schema = new Schema(
       type: Boolean,
       default: false,
     },
+    isPinned: {
+      type: Boolean,
+      default: false,
+    },
+    pinnedAt: {
+      type: Date,
+    },
+    pinnedById: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
   },
   {
     timestamps: true,
@@ -60,6 +74,7 @@ const MessageSchema: Schema = new Schema(
 
 // Optimize listing/pagination queries scoped to a conversation
 MessageSchema.index({ conversationId: 1, createdAt: -1 });
+MessageSchema.index({ conversationId: 1, isPinned: 1 });
 // Full-text search over message content
 MessageSchema.index({ content: 'text' });
 

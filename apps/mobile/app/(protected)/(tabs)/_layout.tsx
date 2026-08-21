@@ -12,18 +12,18 @@ const BUBBLE_SIZE = 60;
 
 const TABS = [
   { name: 'index', label: 'Chat', icon: 'chatbubble', iconOutline: 'chatbubble-outline' },
-  { name: 'story', label: 'Tin', icon: 'play-circle', iconOutline: 'play-circle-outline' },
+  { name: 'story', label: 'Story', icon: 'play-circle', iconOutline: 'play-circle-outline' },
   {
     name: 'notification',
-    label: 'Thông báo',
+    label: 'Noti',
     icon: 'notifications',
     iconOutline: 'notifications-outline',
   },
   {
-    name: 'profile',
-    label: 'Tôi',
-    icon: 'person-circle',
-    iconOutline: 'person-circle-outline',
+    name: 'menu',
+    label: 'Menu',
+    icon: 'menu',
+    iconOutline: 'menu-outline',
   },
 ] as const;
 
@@ -160,9 +160,9 @@ export default function TabBarLayout() {
   return (
     <Tabs tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="index" options={{ title: 'Chat' }} />
-      <Tabs.Screen name="story" options={{ title: 'Tin' }} />
-      <Tabs.Screen name="notification" options={{ title: 'Thông báo' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Tôi' }} />
+      <Tabs.Screen name="story" options={{ title: 'Story' }} />
+      <Tabs.Screen name="notification" options={{ title: 'Noti' }} />
+      <Tabs.Screen name="menu" options={{ title: 'Menu' }} />
     </Tabs>
   );
 }

@@ -56,6 +56,7 @@ const router = Router();
  *         description: Unauthorized
  */
 
+router.patch('/:id/pin', authMiddleware, messageController.togglePinMessage);
 router.patch('/:id', authMiddleware, messageController.editMessage);
 router.delete('/:id', authMiddleware, messageController.deleteMessage);
 

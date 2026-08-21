@@ -40,4 +40,19 @@ export const messageService = {
       `/conversations/${conversationId}/unread-count`,
     );
   },
+  getPinnedMessages: async (conversationId: string) => {
+    return axiosClient.get<never, ApiResponse<{ items: Message[] }>>(
+      `/conversations/${conversationId}/pinned-messages`,
+    );
+  },
+  togglePinMessage: async (messageId: string) => {
+    return axiosClient.patch<never, ApiResponse<{ message: Message }>>(
+      `/messages/${messageId}/pin`,
+    );
+  },
+  searchMessages: async (conversationId: string, q: string) => {
+    return axiosClient.get<never, ApiResponse<{ items: Message[] }>>(`/search/messages`, {
+      params: { conversationId, q },
+    });
+  },
 };

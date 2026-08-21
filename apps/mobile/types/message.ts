@@ -36,6 +36,9 @@ export interface Message {
   replyToMessageId?: MessageReplyPreview | null;
   isEdited: boolean;
   isDeleted: boolean;
+  isPinned?: boolean;
+  pinnedAt?: string;
+  pinnedById?: MessageSender;
   createdAt: string;
   updatedAt: string;
   /** Client-only fields, never persisted on the backend. */

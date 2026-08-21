@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
+import ScreenWrapper from '@/providers/ScreenWrapper';
 import CreateStoryModal from '@/components/CreateStoryModal';
 import { useStoryFeed } from '@/hooks/useStory';
 import { useAuthStore } from '@/stores/auth';
@@ -121,13 +122,13 @@ export default function StoryScreen() {
               )}
             </View>
             <View className="flex-1 justify-end items-center px-2 pt-4 pb-3 bg-white">
-              <Text numberOfLines={2} className="text-center text-[13px] font-semibold text-black">
+              <Text numberOfLines={2} className="text-center text-[16px]  text-black">
                 Tạo tin
               </Text>
             </View>
             {/* Plus Icon Badge */}
-            <View className="absolute top-[68%] left-1/2 -ml-4 -mt-4 h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-[#0084FF]">
-              <Ionicons name="add" size={20} color="#FFFFFF" />
+            <View className="absolute top-[68%] left-1/2 -ml-7 -mt-7 h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-[#0084FF]">
+              <Ionicons name="add" size={24} color="#FFFFFF" />
             </View>
           </Pressable>
         </View>
@@ -169,7 +170,7 @@ export default function StoryScreen() {
               </View>
 
               <View className="z-10">
-                <Text numberOfLines={2} className="text-[13px] font-semibold text-white shadow-sm">
+                <Text numberOfLines={2} className="text-[16px] text-white shadow-sm">
                   {item.name}
                 </Text>
               </View>
@@ -193,7 +194,7 @@ export default function StoryScreen() {
               </View>
 
               <View className="z-10">
-                <Text numberOfLines={2} className="text-[13px] font-semibold text-white">
+                <Text numberOfLines={2} className="text-[16px] text-white">
                   {item.name}
                 </Text>
               </View>
@@ -205,7 +206,7 @@ export default function StoryScreen() {
   };
 
   return (
-    <View className="flex-1 bg-white">
+    <ScreenWrapper className="bg-white">
       <View className="flex-1 bg-white">
         <View className="flex-row justify-between px-4 pt-2 pb-4">
           <Text className="text-3xl font-bold text-black">Tin</Text>
@@ -224,6 +225,6 @@ export default function StoryScreen() {
 
       {/* Shared Create Story Modal */}
       <CreateStoryModal visible={isCreateStoryOpen} onClose={() => setIsCreateStoryOpen(false)} />
-    </View>
+    </ScreenWrapper>
   );
 }

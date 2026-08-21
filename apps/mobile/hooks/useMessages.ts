@@ -187,3 +187,30 @@ export function useUnreadCount(conversationId: string) {
     enabled: !!conversationId,
   });
 }
+
+export function usePinnedMessages(conversationId: string) {
+  return useQuery({
+    queryKey: ['pinned-messages', conversationId],
+    queryFn: () => messageService.getPinnedMessages(conversationId),
+    enabled: !!conversationId,
+  });
+}
+
+export function useTogglePinMessage(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: string) => messageService.togglePinMessage(messageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pinned-messages', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+    },
+  });
+}
+
+export function useSearchMessages(conversationId: string, q: string) {
+  return useQuery({
+    queryKey: ['search-messages', conversationId, q],
+    queryFn: () => messageService.searchMessages(conversationId, q),
+    enabled: !!conversationId && q.trim().length > 0,
+  });
+}

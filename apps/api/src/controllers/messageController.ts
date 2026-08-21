@@ -95,12 +95,10 @@ const messageController = {
       }
 
       const result = await messageService.deleteMessage(String(userId), String(id));
-      getIO()
-        .to(`conversation:${result.conversationId}`)
-        .emit('message:deleted', {
-          messageId: result.messageId,
-          conversationId: result.conversationId,
-        });
+      getIO().to(`conversation:${result.conversationId}`).emit('message:deleted', {
+        messageId: result.messageId,
+        conversationId: result.conversationId,
+      });
       return sendSuccess(res, result, 'Delete message success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
@@ -151,6 +149,45 @@ const messageController = {
       return sendSuccess(res, result, 'Get unread count success', 200);
     } catch (error) {
       return sendError(res, error instanceof Error ? error.message : 'Internal server error', 403);
+    }
+  },
+
+  togglePinMessage: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Message ID is required', 400);
+      }
+
+      const message: any = await messageService.togglePinMessage(String(userId), String(id));
+      getIO().to(`conversation:${message.conversationId}`).emit('message:updated', { message });
+      return sendSuccess(res, { message }, 'Toggle pin message success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
+    }
+  },
+
+  getPinnedMessages: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return sendError(res, 'Unauthorized', 401);
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        return sendError(res, 'Conversation ID is required', 400);
+      }
+
+      const pinnedMessages = await messageService.getPinnedMessages(String(userId), String(id));
+      return sendSuccess(res, { items: pinnedMessages }, 'Get pinned messages success', 200);
+    } catch (error) {
+      return sendError(res, error instanceof Error ? error.message : 'Internal server error', 400);
     }
   },
 };

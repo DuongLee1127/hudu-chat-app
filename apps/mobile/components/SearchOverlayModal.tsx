@@ -1,18 +1,41 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Modal, View, Text, TextInput, Pressable, Keyboard, Image, ScrollView } from 'react-native';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  Keyboard,
+  Image,
+  ScrollView,
+  useWindowDimensions,
+} from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  interpolate,
+  Extrapolation,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useListConversations, useCreateDirectConversation } from '@/hooks/useConversations';
 import { useGlobalSearch } from '@/hooks/useSearch';
 import type { GlobalSearchUser } from '@/services/search.service';
+import type { SearchInputBounds } from '@/components/SearchInput';
 
 interface SearchOverlayModalProps {
   visible: boolean;
   onClose: () => void;
+  initialBounds?: SearchInputBounds | null;
   currentUserId?: string;
 }
 
@@ -23,22 +46,87 @@ const RECENT_SEARCHES_STORAGE_KEY = '@hudu_recent_searches';
 export default function SearchOverlayModal({
   visible,
   onClose,
-  currentUserId,
+  initialBounds,
 }: SearchOverlayModalProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const inputRef = useRef<TextInput>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<SearchCategory>('all');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
 
   const createDirectConvMutation = useCreateDirectConversation();
 
-  // Load recent searches from AsyncStorage when modal opens
+  // Animation shared progress (0 = collapsed at Chat input position, 1 = expanded in overlay)
+  const progress = useSharedValue(0);
+
+  // Target overlay header coordinates
+  const overlayY = Math.max(insets.top + 8, 48);
+  const overlayX = 46;
+  const overlayW = Math.max(screenWidth - overlayX - 16, 100);
+  const overlayH = 48;
+
+  // Initial bounds from Chat screen (with fail-safe defaults)
+  const startX = initialBounds?.x ?? 12;
+  const startY = initialBounds?.y ?? overlayY + 50;
+  const startW = initialBounds?.width ?? screenWidth - 24;
+  const startH = initialBounds?.height ?? 48;
+
+  const focusInput = () => {
+    inputRef.current?.focus();
+  };
+
   useEffect(() => {
     if (visible) {
+      setIsMounted(true);
       loadRecentSearches();
+
+      progress.value = 0;
+      // Ultra-smooth spring physics for fluid GPU transition
+      progress.value = withSpring(1, {
+        damping: 26,
+        stiffness: 280,
+        mass: 0.8,
+      });
+
+      // Focus text input after morph transition completes to prevent keyboard stutter
+      const focusTimer = setTimeout(() => {
+        runOnJS(focusInput)();
+      }, 200);
+
+      return () => clearTimeout(focusTimer);
+    } else if (isMounted) {
+      handleCloseAnimation();
     }
   }, [visible]);
+
+  const completeClose = () => {
+    setIsMounted(false);
+    setSearchQuery('');
+    onClose();
+  };
+
+  const handleCloseAnimation = () => {
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+
+    progress.value = withTiming(
+      0,
+      {
+        duration: 220,
+        easing: Easing.bezier(0.25, 1, 0.5, 1),
+      },
+      (finished) => {
+        if (finished) {
+          runOnJS(completeClose)();
+        }
+      },
+    );
+  };
 
   const loadRecentSearches = async () => {
     try {
@@ -95,13 +183,11 @@ export default function SearchOverlayModal({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Initial suggestions query (when search box is empty)
   const { data: suggestionsData } = useListConversations({
     page: 1,
     pageSize: 10,
   });
 
-  // Single unified Messenger search query (/api/search/global)
   const { data: searchData, isLoading: isSearching } = useGlobalSearch(debouncedQuery);
 
   const friends = searchData?.data?.users ?? [];
@@ -126,7 +212,7 @@ export default function SearchOverlayModal({
     if (user.username) {
       saveRecentSearch(user.username);
     }
-    onClose();
+    handleCloseAnimation();
 
     if (user.conversationId) {
       router.push({
@@ -152,7 +238,7 @@ export default function SearchOverlayModal({
     if (title) {
       saveRecentSearch(title);
     }
-    onClose();
+    handleCloseAnimation();
     router.push({
       pathname: '/chat/[id]',
       params: { id: conversationId },
@@ -174,44 +260,130 @@ export default function SearchOverlayModal({
     setSearchQuery('');
   };
 
-  const handleClose = () => {
-    Keyboard.dismiss();
-    setSearchQuery('');
-    onClose();
-  };
+  // Reanimated GPU-accelerated hardware styles (0% layout re-pass)
+  const backdropAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(progress.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+    };
+  });
+
+  const backButtonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      position: 'absolute',
+      top: overlayY,
+      left: 6,
+      width: 36,
+      height: overlayH,
+      justifyContent: 'center',
+      alignItems: 'center',
+      opacity: interpolate(progress.value, [0.3, 1], [0, 1], Extrapolation.CLAMP),
+      transform: [
+        { translateX: interpolate(progress.value, [0, 1], [-20, 0], Extrapolation.CLAMP) },
+        { scale: interpolate(progress.value, [0.3, 1], [0.6, 1], Extrapolation.CLAMP) },
+      ],
+      zIndex: 101,
+    };
+  });
+
+  // Pure UI-Thread Layout Bounds Morphing Container (0% Scale Matrix Distortion)
+  const morphingContainerStyle = useAnimatedStyle(() => {
+    const top = interpolate(progress.value, [0, 1], [startY, overlayY], Extrapolation.CLAMP);
+    const left = interpolate(progress.value, [0, 1], [startX, overlayX], Extrapolation.CLAMP);
+    const width = interpolate(progress.value, [0, 1], [startW, overlayW], Extrapolation.CLAMP);
+    const height = interpolate(progress.value, [0, 1], [startH, overlayH], Extrapolation.CLAMP);
+
+    return {
+      position: 'absolute',
+      top,
+      left,
+      width,
+      height,
+      borderRadius: 24,
+      backgroundColor: '#F3F4F6',
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: interpolate(progress.value, [0, 0.5, 1], [0, 0.15, 0.05], Extrapolation.CLAMP),
+      shadowRadius: 10,
+      elevation: interpolate(progress.value, [0, 0.5, 1], [0, 8, 2], Extrapolation.CLAMP),
+      zIndex: 100,
+    };
+  });
+
+  const innerContentStyle = useAnimatedStyle(() => {
+    return {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    };
+  });
+  const contentAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      flex: 1,
+      marginTop: overlayY + overlayH + 8,
+      opacity: interpolate(progress.value, [0.25, 1], [0, 1], Extrapolation.CLAMP),
+      transform: [
+        { translateY: interpolate(progress.value, [0, 1], [30, 0], Extrapolation.CLAMP) },
+      ],
+    };
+  });
+
+  if (!isMounted && !visible) {
+    return null;
+  }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleClose}>
+    <Modal
+      visible={isMounted}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={handleCloseAnimation}
+    >
       <StatusBar style="dark" />
-      <View className="flex-1 pt-12 bg-white">
-        {/* Header Bar */}
-        <View className="flex-row items-center px-3 pb-2.5">
-          <Pressable onPress={handleClose} className="p-2 mr-1 -ml-1">
-            <Ionicons name="arrow-back" size={26} color="#1A1A1A" />
-          </Pressable>
 
-          {/* Search Input Container */}
-          <View className="flex-1 h-12 flex-row items-center bg-[#F3F4F6] rounded-full px-3.5">
-            <Ionicons name="search-outline" size={20} color="#9CA3AF" />
-            <TextInput
-              autoFocus
-              className="ml-2 flex-1 text-[16px] text-[#111827] p-0"
-              style={{ includeFontPadding: false, textAlignVertical: 'center' }}
-              placeholder="Tìm kiếm bạn bè, nhóm..."
-              placeholderTextColor="#9CA3AF"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onSubmitEditing={handleSearchSubmit}
-              returnKeyType="search"
-            />
-            {Boolean(searchQuery) && (
-              <Pressable onPress={handleClear} hitSlop={8} className="p-1">
-                <Ionicons name="close-circle" size={18} color="#9CA3AF" />
-              </Pressable>
-            )}
-          </View>
-        </View>
+      {/* Smooth backdrop layer */}
+      <Animated.View
+        style={[
+          { position: 'absolute', inset: 0, backgroundColor: '#FFFFFF' },
+          backdropAnimatedStyle,
+        ]}
+      />
 
+      {/* Back Button */}
+      <Animated.View style={backButtonAnimatedStyle}>
+        <Pressable onPress={handleCloseAnimation} hitSlop={12} className="p-1">
+          <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+        </Pressable>
+      </Animated.View>
+
+      {/* Hero Morphing Search Input Bar Container (UI-Thread Bounds Interpolation) */}
+      <Animated.View style={morphingContainerStyle}>
+        <Animated.View style={innerContentStyle}>
+          <Ionicons name="search-outline" size={20} color="#9CA3AF" />
+          <TextInput
+            ref={inputRef}
+            className="ml-2 flex-1 text-[16px] text-[#111827] p-0"
+            style={{ includeFontPadding: false, textAlignVertical: 'center' }}
+            placeholder="Tìm kiếm bạn bè, nhóm..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
+          />
+          {Boolean(searchQuery) && (
+            <Pressable onPress={handleClear} hitSlop={8} className="p-1">
+              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+            </Pressable>
+          )}
+        </Animated.View>
+      </Animated.View>
+
+      {/* Body Content */}
+      <Animated.View style={contentAnimatedStyle}>
         {/* Category Tabs */}
         {Boolean(searchQuery.trim()) && (
           <View className="flex-row gap-2 px-3.5 py-2">
@@ -239,10 +411,10 @@ export default function SearchOverlayModal({
           </View>
         )}
 
-        {/* Body Content */}
+        {/* Body Content List */}
         {!searchQuery.trim() ? (
           /* Recent Searches & Suggestions */
-          <ScrollView className="flex-1 px-3.5 pt-4" keyboardShouldPersistTaps="handled">
+          <ScrollView className="flex-1 px-3.5 pt-2" keyboardShouldPersistTaps="handled">
             {/* Recent Searches Section */}
             {recentSearches.length > 0 && (
               <View className="mb-6">
@@ -343,7 +515,7 @@ export default function SearchOverlayModal({
             {/* Friends / Users Section */}
             {(activeCategory === 'all' || activeCategory === 'friends') && friends.length > 0 && (
               <View className="mb-5">
-                <Text className="mb-2 text-xs font-bold tracking-wider text-gray-400 uppercase">
+                <Text className="mb-2 text-[15px] font-bold text-gray-900">
                   Bạn bè & Người dùng ({friends.length})
                 </Text>
                 {friends.map((item) => (
@@ -415,7 +587,7 @@ export default function SearchOverlayModal({
             {/* Messages Section */}
             {(activeCategory === 'all' || activeCategory === 'messages') && messages.length > 0 && (
               <View className="mb-5">
-                <Text className="mb-2 text-xs font-bold tracking-wider text-gray-400 uppercase">
+                <Text className="mb-2 text-[15px] font-bold text-gray-900">
                   Tin nhắn liên quan ({messages.length})
                 </Text>
                 {messages.map((item) => {
@@ -450,7 +622,7 @@ export default function SearchOverlayModal({
             )}
           </ScrollView>
         )}
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

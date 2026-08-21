@@ -13,6 +13,7 @@ const EDIT_WINDOW_MS = 15 * 60 * 1000; // 15 phút
 const populateMessage = (query: any) =>
   query
     .populate({ path: 'senderId', select: '_id username avatar' })
+    .populate({ path: 'pinnedById', select: '_id username avatar' })
     .populate({ path: 'attachmentIds' })
     .populate({
       path: 'replyToMessageId',
@@ -130,10 +131,7 @@ const messageService = {
       });
 
       if (attachmentIds.length > 0) {
-        await Attachment.updateMany(
-          { _id: { $in: attachmentIds } },
-          { messageId: message._id },
-        );
+        await Attachment.updateMany({ _id: { $in: attachmentIds } }, { messageId: message._id });
       }
 
       await Conversation.findByIdAndUpdate(conversationId, {
@@ -220,7 +218,11 @@ const messageService = {
       message.attachmentIds = [];
       await message.save();
 
-      return { success: true, conversationId: String(message.conversationId), messageId: String(message._id) };
+      return {
+        success: true,
+        conversationId: String(message.conversationId),
+        messageId: String(message._id),
+      };
     } catch (error) {
       throw error;
     }
@@ -261,6 +263,70 @@ const messageService = {
 
       const unreadCount = await Message.countDocuments(filter);
       return { unreadCount };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  togglePinMessage: async (userId: string, messageId: string) => {
+    try {
+      const message = await Message.findById(messageId);
+      if (!message || message.isDeleted) {
+        throw new Error('Tin nhắn không tồn tại!');
+      }
+
+      const conversationId = String(message.conversationId);
+      await assertMember(conversationId, userId);
+
+      const user = await User.findById(userId).select('username');
+      const isPinning = !message.isPinned;
+
+      // Enforce max 5 pinned messages per conversation
+      if (isPinning) {
+        const currentPinnedCount = await Message.countDocuments({
+          conversationId,
+          isPinned: true,
+          isDeleted: false,
+        });
+        if (currentPinnedCount >= 5) {
+          throw new Error('Mỗi cuộc trò chuyện chỉ được ghim tối đa 5 tin nhắn!');
+        }
+      }
+
+      message.isPinned = isPinning;
+      message.pinnedAt = isPinning ? new Date() : undefined;
+      message.pinnedById = isPinning ? (new mongoose.Types.ObjectId(userId) as any) : undefined;
+      await message.save();
+
+      // Create a system notification message if pinning
+      if (isPinning && user) {
+        await messageService.createSystemMessage(
+          conversationId,
+          userId,
+          `${user.username || 'Người dùng'} đã ghim một tin nhắn`,
+        );
+      }
+
+      const updated = await populateMessage(Message.findById(message._id)).exec();
+      return updated;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getPinnedMessages: async (userId: string, conversationId: string) => {
+    try {
+      await assertMember(conversationId, userId);
+
+      const pinnedMessages = await populateMessage(
+        Message.find({
+          conversationId,
+          isPinned: true,
+          isDeleted: false,
+        }).sort({ pinnedAt: -1 }),
+      ).exec();
+
+      return pinnedMessages;
     } catch (error) {
       throw error;
     }

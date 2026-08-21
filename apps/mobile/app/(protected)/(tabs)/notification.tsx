@@ -1,164 +1,197 @@
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { Pressable, ScrollView, Text, View, ActivityIndicator, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type NotificationItem = {
-  id: string;
-  name: string;
-  message: string;
-  time: string;
-  avatar: string;
-  unread?: boolean;
-  type: 'message' | 'like' | 'mention' | 'friend';
-};
+import ScreenWrapper from '@/providers/ScreenWrapper';
+import { useNotifications, useMarkNotificationAsRead } from '@/hooks/useNotifications';
+import type { NotificationItem as APINotificationItem } from '@/types/notification';
 
-const notifications: NotificationItem[] = [
-  {
-    id: '1',
-    name: 'Zahri K.',
-    message: 'đã gửi cho bạn một tin nhắn mới.',
-    time: '2 phút',
-    avatar: 'https://i.pravatar.cc/150?img=11',
-    unread: true,
-    type: 'message',
-  },
-  {
-    id: '2',
-    name: 'Hodden',
-    message: 'đã thích tin của bạn.',
-    time: '15 phút',
-    avatar: 'https://i.pravatar.cc/150?img=13',
-    unread: true,
-    type: 'like',
-  },
-  {
-    id: '3',
-    name: 'Peter R.',
-    message: 'đã nhắc đến bạn trong một tin nhắn.',
-    time: '1 giờ',
-    avatar: 'https://i.pravatar.cc/150?img=14',
-    type: 'mention',
-  },
-  {
-    id: '4',
-    name: 'Salma',
-    message: 'đã gửi lời mời kết bạn cho bạn.',
-    time: '3 giờ',
-    avatar: 'https://i.pravatar.cc/150?img=16',
-    type: 'friend',
-  },
-  {
-    id: '5',
-    name: 'Nguyễn Minh',
-    message: 'đã gửi cho bạn một tin nhắn.',
-    time: 'Hôm qua',
-    avatar: 'https://i.pravatar.cc/150?img=20',
-    type: 'message',
-  },
-];
+function formatNotificationTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-function NotificationIcon({ type }: { type: NotificationItem['type'] }) {
-  switch (type) {
-    case 'message':
-      return (
-        <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full bg-[#0879D1]">
-          <Ionicons name="chatbubble" size={13} color="white" />
-        </View>
-      );
+  if (isNaN(date.getTime())) return 'Gần đây';
+  if (diffInSeconds < 60) return 'Vừa xong';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ`;
+  if (diffInSeconds < 172800) return 'Hôm qua';
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} ngày`;
 
-    case 'like':
-      return (
-        <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full bg-[#F04444]">
-          <Ionicons name="heart" size={13} color="white" />
-        </View>
-      );
-
-    case 'mention':
-      return (
-        <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full bg-[#0879D1]">
-          <Text className="text-[13px] font-bold text-white">@</Text>
-        </View>
-      );
-
-    case 'friend':
-      return (
-        <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full bg-[#42B72A]">
-          <Ionicons name="person-add" size={13} color="white" />
-        </View>
-      );
-  }
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 }
 
-function NotificationItemRow({ item }: { item: NotificationItem }) {
+function NotificationItemRow({
+  item,
+  onPress,
+}: {
+  item: APINotificationItem;
+  onPress: (item: APINotificationItem) => void;
+}) {
+  let title = 'Thông báo hệ thống';
+  let subtitle = 'Bạn có một thông báo mới';
+
+  const colonIndex = item.content.indexOf(':');
+  if (colonIndex !== -1) {
+    title = item.content.substring(0, colonIndex).trim();
+  }
+
+  switch (item.type) {
+    case 'message':
+      if (!title || title === 'Thông báo hệ thống') title = 'Tin nhắn mới';
+      subtitle = 'Đã gửi cho bạn một tin nhắn';
+      break;
+    case 'friend_request':
+      if (!title || title === 'Thông báo hệ thống') title = 'Lời mời kết bạn';
+      subtitle = 'Đã gửi cho bạn lời mời kết bạn';
+      break;
+    case 'mention':
+      if (!title || title === 'Thông báo hệ thống') title = 'Lượt nhắc đến';
+      subtitle = 'Đã nhắc đến bạn trong một tin nhắn';
+      break;
+    case 'system':
+    default:
+      subtitle = 'Bạn có một thông báo mới';
+      break;
+  }
+
+  const initial = (title || 'N').charAt(0).toUpperCase();
+
   return (
     <Pressable
-      className={`flex-row items-center px-3 py-3 ${item.unread ? 'bg-[#F0F7FF]' : 'bg-white'}`}
+      onPress={() => onPress(item)}
+      className={`flex-row items-center px-3.5 py-3 ${!item.isRead ? 'bg-[#F0F7FF]' : 'bg-white'}`}
     >
-      {/* Avatar */}
-      <View className="relative">
-        <Image source={{ uri: item.avatar }} className="h-[58px] w-[58px] rounded-full" />
-
-        <NotificationIcon type={item.type} />
+      {/* Clean Avatar without badge */}
+      <View className="h-[52px] w-[52px] rounded-full bg-[#7B5CFA]/15 items-center justify-center">
+        <Text className="text-xl font-bold text-[#7B5CFA]">{initial}</Text>
       </View>
 
       {/* Content */}
-      <View className="flex-1 pr-2 ml-3">
-        <Text numberOfLines={2} className="text-[14px] leading-[20px] text-[#222]">
-          <Text className="font-bold">{item.name}</Text> {item.message}
+      <View className="flex-1 justify-center pr-2 ml-3">
+        <Text numberOfLines={1} className="font-bold text-[15px] text-[#111827]">
+          {title}
         </Text>
 
-        <Text className="mt-1 text-[12px] text-[#777]">{item.time}</Text>
+        <Text numberOfLines={1} className="mt-0.5 text-[13px] text-gray-500">
+          {subtitle} • {formatNotificationTime(item.createdAt)}
+        </Text>
       </View>
 
       {/* Unread indicator */}
-      {item.unread && <View className="h-2.5 w-2.5 rounded-full bg-[#0879D1]" />}
+      {!item.isRead && <View className="h-2.5 w-2.5 rounded-full bg-[#0879D1]" />}
     </Pressable>
   );
 }
 
 export default function Notification() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  const { data, isLoading, refetch, isRefetching } = useNotifications({ page: 1, pageSize: 30 });
+  const markAsReadMutation = useMarkNotificationAsRead();
+
+  const rawItems = data?.data?.items;
+  const notifications = useMemo(() => rawItems ?? [], [rawItems]);
+
+  const { unreadList, readList } = useMemo(() => {
+    const unread = notifications.filter((n) => !n.isRead);
+    const read = notifications.filter((n) => n.isRead);
+    return { unreadList: unread, readList: read };
+  }, [notifications]);
+
+  const handlePressItem = (item: APINotificationItem) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+
+    if (!item.isRead) {
+      markAsReadMutation.mutate(item._id);
+    }
+
+    if (item.link) {
+      if (item.link.startsWith('/chat/')) {
+        const conversationId = item.link.replace('/chat/', '');
+        if (conversationId) {
+          router.push({
+            pathname: '/chat/[id]',
+            params: { id: conversationId },
+          });
+        }
+      }
+    }
+  };
+
   return (
-    <View className="flex-1">
+    <ScreenWrapper className="bg-white">
       <View className="flex-1 bg-white">
         {/* Header */}
         <View className="flex-row justify-between items-center px-4 pt-2 pb-4">
           <Text className="text-3xl font-bold text-[#111]">Thông báo</Text>
-
-          <Pressable className="h-10 w-10 items-center justify-center rounded-full bg-[#F2F2F2]">
-            <Ionicons name="settings-outline" size={22} color="#222" />
-          </Pressable>
         </View>
 
         {/* Notification list */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingBottom: 120,
-          }}
-        >
-          {/* Section */}
-          <View className="px-4 pt-1 pb-2">
-            <Text className="text-[17px] font-bold text-[#111]">Mới</Text>
+        {isLoading ? (
+          <View className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#0879D1" />
           </View>
-
-          {notifications.map((item) => (
-            <NotificationItemRow key={item.id} item={item} />
-          ))}
-
-          {/* Older section */}
-          <View className="px-4 pt-6 pb-2">
-            <Text className="text-[17px] font-bold text-[#111]">Trước đó</Text>
-          </View>
-
-          <NotificationItemRow
-            item={{
-              ...notifications[4],
-              id: 'old-1',
-              unread: false,
-              time: '2 ngày',
+        ) : notifications.length === 0 ? (
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+            refreshControl={
+              <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#0879D1" />
+            }
+            className="px-6"
+          >
+            <View className="justify-center items-center mb-4 w-16 h-16 bg-blue-50 rounded-full">
+              <Ionicons name="notifications-outline" size={32} color="#0879D1" />
+            </View>
+            <Text className="text-base font-bold text-center text-gray-900">
+              Chưa có thông báo nào
+            </Text>
+            <Text className="mt-1 text-sm text-center text-gray-500">
+              Khi có tin nhắn mới hoặc thông báo hệ thống, chúng sẽ xuất hiện tại đây.
+            </Text>
+          </ScrollView>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingBottom: 120,
             }}
-          />
-        </ScrollView>
+            refreshControl={
+              <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#0879D1" />
+            }
+          >
+            {/* Section: Mới */}
+            {unreadList.length > 0 && (
+              <View>
+                <View className="px-4 pt-1 pb-2">
+                  <Text className="text-[17px] font-bold text-[#111]">Mới</Text>
+                </View>
+
+                {unreadList.map((item) => (
+                  <NotificationItemRow key={item._id} item={item} onPress={handlePressItem} />
+                ))}
+              </View>
+            )}
+
+            {/* Section: Trước đó */}
+            {readList.length > 0 && (
+              <View>
+                <View className={`px-4 pb-2 ${unreadList.length > 0 ? 'pt-6' : 'pt-1'}`}>
+                  <Text className="text-[17px] font-bold text-[#111]">Trước đó</Text>
+                </View>
+
+                {readList.map((item) => (
+                  <NotificationItemRow key={item._id} item={item} onPress={handlePressItem} />
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        )}
       </View>
-    </View>
+    </ScreenWrapper>
   );
 }

@@ -106,7 +106,7 @@ export default function SignInScreen() {
       if (router.canGoBack()) {
         router.back();
       } else {
-        router.replace('/(auth)');
+        router.replace('/(auth)/welcome');
       }
     }
   };

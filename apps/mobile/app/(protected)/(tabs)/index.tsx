@@ -9,16 +9,16 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 
 import ChatItem from '@/components/ChatItem';
 import StoryItem from '@/components/StoryItem';
-import SearchInput from '@/components/SearchInput';
+import SearchInput, { SearchInputBounds } from '@/components/SearchInput';
 import SearchOverlayModal from '@/components/SearchOverlayModal';
 import CreateStoryModal from '@/components/CreateStoryModal';
+import ScreenWrapper from '@/providers/ScreenWrapper';
 import { useListConversations } from '@/hooks/useConversations';
 import { useStoryFeed } from '@/hooks/useStory';
 import { useAuthStore } from '@/stores/auth';
@@ -77,8 +77,16 @@ export default function ChatScreen() {
   const currentUser = useAuthStore((state) => state.user);
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchBounds, setSearchBounds] = useState<SearchInputBounds | null>(null);
   const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+
+  const handleOpenSearch = (bounds?: SearchInputBounds) => {
+    if (bounds) {
+      setSearchBounds(bounds);
+    }
+    setIsSearchOpen(true);
+  };
 
   const { data } = useListConversations(LIST_PARAMS);
   const { data: feedData } = useStoryFeed();
@@ -140,23 +148,21 @@ export default function ChatScreen() {
   };
 
   return (
-    <View className="flex-1">
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
-
+    <ScreenWrapper className="bg-white">
       {/* Main white container */}
       <View className="flex-1 rounded-b-[32px] bg-white">
         <View className="flex-row justify-between px-3 pt-2 pb-4">
           <Text className="text-3xl font-bold">Chat</Text>
           {/* <View className="flex-row gap-4 items-center">
-            <Pressable onPress={() => setIsCreateStoryOpen(true)}>
-              <Ionicons name="camera-outline" size={28} color="#1A1A1A" />
-            </Pressable>
-            <Ionicons name="create-outline" size={28} color="#1A1A1A" />
-          </View> */}
+              <Pressable onPress={() => setIsCreateStoryOpen(true)}>
+                <Ionicons name="camera-outline" size={28} color="#1A1A1A" />
+              </Pressable>
+              <Ionicons name="create-outline" size={28} color="#1A1A1A" />
+            </View> */}
         </View>
 
         <View className="px-3 pb-2">
-          <SearchInput onPress={() => setIsSearchOpen(true)} />
+          <SearchInput onPress={handleOpenSearch} placeholder="Tìm kiếm bạn bè, nhóm..." />
         </View>
 
         {/* Conversation List with Story Header & Filter Badges */}
@@ -236,12 +242,16 @@ export default function ChatScreen() {
           }}
         />
 
-        {/* Messenger-style full-screen search overlay */}
-        <SearchOverlayModal visible={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+        {/* Messenger-style full-screen search overlay with hero morphing animation */}
+        <SearchOverlayModal
+          visible={isSearchOpen}
+          initialBounds={searchBounds}
+          onClose={() => setIsSearchOpen(false)}
+        />
 
         {/* Reusable Create Story Modal */}
         <CreateStoryModal visible={isCreateStoryOpen} onClose={() => setIsCreateStoryOpen(false)} />
       </View>
-    </View>
+    </ScreenWrapper>
   );
 }
