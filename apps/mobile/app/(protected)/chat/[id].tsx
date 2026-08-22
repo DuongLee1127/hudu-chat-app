@@ -3,14 +3,11 @@ import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  Animated,
   ActivityIndicator,
-  Clipboard,
   FlatList,
   Image,
   Keyboard,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   Text,
@@ -35,6 +32,10 @@ import {
 import { useSocketContext } from '@/providers/SocketProvider';
 import { resolvePresence, useChatStore } from '@/stores/chat';
 import type { Message } from '@/types/message';
+import {
+  FloatingMessageContextMenu,
+  MessageBubbleLayout,
+} from './_components/FloatingMessageContextMenu';
 
 const TYPING_STOP_DELAY_MS = 2500;
 
@@ -84,7 +85,7 @@ function SystemMessage({ content }: { content: string }) {
   return (
     <View className="items-center my-2">
       <View className="rounded-full bg-[#EBEBEB] px-3.5 py-1">
-        <Text className="text-[16px] font-medium text-center text-gray-500">{content}</Text>
+        <Text className="text-sm font-medium text-center text-gray-500">{content}</Text>
       </View>
     </View>
   );
@@ -92,148 +93,181 @@ function SystemMessage({ content }: { content: string }) {
 
 interface MessageBubbleProps {
   message: Message;
-  isMe: boolean;
-  isGroup: boolean;
-  isFirstInGroup: boolean;
-  isLastInGroup: boolean;
-  onLongPress?: (message: Message) => void;
+  currentUserId: string;
+  isGroup?: boolean;
+  isFirstInGroup?: boolean;
+  isLastInGroup?: boolean;
+  isContextMenuActive?: boolean;
+  onLongPress?: (
+    message: Message,
+    measureBubble: (cb: (layout: MessageBubbleLayout) => void) => void,
+  ) => void;
 }
 
 function MessageBubble({
   message,
-  isMe,
+  currentUserId,
   isGroup,
   isFirstInGroup,
   isLastInGroup,
+  isContextMenuActive,
   onLongPress,
 }: MessageBubbleProps) {
-  const avatarUrl = message.senderId.avatar;
+  const bubbleRef = useRef<View>(null);
+  const isMe = message.senderId?._id === currentUserId;
+  const avatarUrl = message.senderId?.avatar;
   const timeLabel = formatMessageTime(message.createdAt);
   const showSenderName = isGroup && !isMe && isFirstInGroup;
-  const showAvatar = isGroup && !isMe;
+  const showAvatar = !isMe;
   const showTimestamp =
     isLastInGroup || message.status === 'sending' || message.status === 'failed';
+
+  const measureBubble = useCallback((cb: (layout: MessageBubbleLayout) => void) => {
+    bubbleRef.current?.measureInWindow((x, y, width, height) => {
+      cb({ x, y, width, height });
+    });
+  }, []);
 
   return (
     <View
       className={`${isLastInGroup ? 'mb-3.5' : 'mb-1'} ${message.isPinned && !message.isDeleted ? 'mt-2' : ''} flex-row ${isMe ? 'justify-end' : 'justify-start'}`}
     >
-      {/* Group member avatar (Messenger style: avatar ONLY at the bottom of consecutive block) */}
-      {showAvatar && (
-        <View className="justify-end mr-2 w-8">
-          {isLastInGroup ? (
-            avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} className="w-8 h-8 rounded-full" />
-            ) : (
-              <View className="h-8 w-8 rounded-full bg-[#6f6bff] items-center justify-center">
-                <Text className="text-xs font-semibold text-white">
-                  {message.senderId.username?.charAt(0).toUpperCase() || 'U'}
-                </Text>
-              </View>
-            )
-          ) : (
-            <View className="w-8 h-8" />
-          )}
-        </View>
-      )}
-
-      <View className={`max-w-[82%] ${isMe ? 'items-end' : 'items-start'}`}>
+      <View className={`max-w-[85%] ${isMe ? 'items-end' : 'items-start'}`}>
         {/* Sender name in group (only on top message of consecutive group) */}
         {showSenderName && (
-          <Text className="mb-1 text-sm font-medium text-gray-500">
-            {message.senderId.username}
+          <Text className={`mb-1 text-sm font-medium text-gray-500 ${showAvatar ? 'ml-10' : ''}`}>
+            {message.senderId?.username}
           </Text>
         )}
 
-        {/* Pin indicator ABOVE the bubble (Messenger style) */}
-        {message.isPinned && !message.isDeleted && (
-          <View className={`flex-row items-center mb-1 ml-2.5 ${isMe ? 'self-end' : 'self-start'}`}>
-            <Text className="ml-1 text-[11px] text-gray-500">Đã ghim</Text>
-          </View>
-        )}
-
-        {/* Reply preview */}
-        {message.replyToMessageId && !message.isDeleted && (
-          <View
-            className={`mb-1.5 rounded-xl px-3.5 py-2 border-l-3 ${
-              isMe ? 'bg-[#5B52E0] border-white/80' : 'bg-[#EAEAEA] border-[#6f6bff]'
-            }`}
-          >
-            <Text className={`text-xs font-semibold ${isMe ? 'text-white' : 'text-[#6f6bff]'}`}>
-              {message.replyToMessageId.senderId.username}
-            </Text>
-            <Text
-              numberOfLines={1}
-              className={`text-sm ${isMe ? 'text-white/80' : 'text-gray-600'} ${
-                message.replyToMessageId.isDeleted ? 'italic' : ''
-              }`}
-            >
-              {message.replyToMessageId.isDeleted
-                ? 'Tin nhắn đã được thu hồi'
-                : message.replyToMessageId.content || 'Tệp đính kèm'}
-            </Text>
-          </View>
-        )}
-
-        {/* Main bubble with long press handler - wrapped in relative View for pin overlay */}
-        <View style={{ position: 'relative' }}>
-          <Pressable
-            onLongPress={() => {
-              if (!message.isDeleted && onLongPress) {
-                onLongPress(message);
-              }
-            }}
-            delayLongPress={250}
-            className={`rounded-2xl px-4 py-2.5 ${
-              isMe ? 'rounded-br-xs bg-[#6f6bff]' : 'rounded-bl-xs bg-white'
-            }`}
-            style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.08,
-              shadowRadius: 4,
-              elevation: 1.5,
-            }}
-          >
-            <Text
-              className={`text-[16px] leading-6 font-normal ${
-                message.isDeleted
-                  ? isMe
-                    ? 'italic text-white/75'
-                    : 'italic text-gray-400'
-                  : isMe
-                    ? 'text-white'
-                    : 'text-gray-900'
-              }`}
-            >
-              {message.isDeleted ? 'Tin nhắn đã được thu hồi' : message.content}
-            </Text>
-          </Pressable>
-
-          {/* Pin icon overlaid on top-left corner of bubble */}
-          {message.isPinned && !message.isDeleted && (
-            <View
-              style={{
-                position: 'absolute',
-                top: -8,
-                left: isMe ? undefined : -6,
-                right: isMe ? -6 : undefined,
-              }}
-            >
-              <View
-                className="justify-center items-center w-5 h-5 bg-amber-400 rounded-full"
-                style={{
-                  shadowColor: '#D97706',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.4,
-                  shadowRadius: 2,
-                  elevation: 3,
-                }}
-              >
-                <FontAwesome5 name="thumbtack" size={10} color="white" />
-              </View>
+        {/* Bubble & Avatar Row */}
+        <View className={`flex-row items-end ${isMe ? 'justify-end' : 'justify-start'}`}>
+          {/* Avatar (Messenger style: avatar ONLY at the bottom of consecutive block) */}
+          {showAvatar && (
+            <View className="justify-end mr-2 w-8">
+              {isLastInGroup ? (
+                avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} className="w-8 h-8 rounded-full" />
+                ) : (
+                  <View className="h-8 w-8 rounded-full bg-[#6f6bff] items-center justify-center">
+                    <Text className="text-xs font-semibold text-white">
+                      {message.senderId?.username?.charAt(0).toUpperCase() || 'U'}
+                    </Text>
+                  </View>
+                )
+              ) : (
+                <View className="w-8 h-8" />
+              )}
             </View>
           )}
+
+          <View className="shrink">
+            {/* Pin indicator ABOVE the bubble (Messenger style) */}
+            {message.isPinned && !message.isDeleted && (
+              <View
+                className={`flex-row items-center mb-1 ml-2.5 ${isMe ? 'self-end' : 'self-start'}`}
+              >
+                <Text className="ml-1 text-[11px] text-gray-500">Đã ghim</Text>
+              </View>
+            )}
+
+            {/* Reply preview */}
+            {message.replyToMessageId && !message.isDeleted && (
+              <View>
+                <View className="flex-row items-center">
+                  <Ionicons name="arrow-undo-outline" size={14} color="#374151" />
+                  <Text className={`ml-1 text-xs font-semibold text-gray-400'}`}>
+                    {isMe
+                      ? 'Bạn đã trả lời chính mình'
+                      : 'Bạn đã trả lời ' + message.replyToMessageId.senderId?.username}
+                  </Text>
+                </View>
+                <View
+                  className={`mb-1.5 rounded-xl px-3.5 py-2 border-l-3 ${
+                    isMe ? 'bg-[#5B52E0] border-white/80' : 'bg-[#EAEAEA] border-[#6f6bff]'
+                  }`}
+                >
+                  <Text
+                    numberOfLines={1}
+                    className={`text-sm ${isMe ? 'text-white/80' : 'text-gray-600'} ${
+                      message.replyToMessageId.isDeleted ? 'italic' : ''
+                    }`}
+                  >
+                    {message.replyToMessageId.isDeleted
+                      ? 'Tin nhắn đã được thu hồi'
+                      : message.replyToMessageId.content || 'Tệp đính kèm'}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Main bubble with long press handler - wrapped in relative View with opacity toggle */}
+            <View
+              ref={bubbleRef}
+              style={{
+                position: 'relative',
+                opacity: isContextMenuActive ? 0 : 1,
+              }}
+            >
+              <Pressable
+                onLongPress={() => {
+                  if (!message.isDeleted && onLongPress) {
+                    onLongPress(message, measureBubble);
+                  }
+                }}
+                delayLongPress={250}
+                className={`rounded-2xl px-3.5 py-2 ${
+                  isMe ? 'rounded-br-xs bg-[#6f6bff]' : 'rounded-bl-xs bg-white'
+                }`}
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 4,
+                  elevation: 1.5,
+                }}
+              >
+                <Text
+                  className={`text-[16px] leading-6 font-normal ${
+                    message.isDeleted
+                      ? isMe
+                        ? 'italic text-white/75'
+                        : 'italic text-gray-400'
+                      : isMe
+                        ? 'text-white'
+                        : 'text-gray-900'
+                  }`}
+                >
+                  {message.isDeleted ? 'Tin nhắn đã được thu hồi' : message.content}
+                </Text>
+              </Pressable>
+
+              {/* Pin icon overlaid on top-left corner of bubble */}
+              {message.isPinned && !message.isDeleted && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -8,
+                    left: isMe ? undefined : -6,
+                    right: isMe ? -6 : undefined,
+                  }}
+                >
+                  <View
+                    className="justify-center items-center w-5 h-5 bg-[#6f6bff] rounded-full"
+                    style={{
+                      shadowColor: '#6f6bff',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.4,
+                      shadowRadius: 2,
+                      elevation: 3,
+                    }}
+                  >
+                    <FontAwesome5 name="thumbtack" size={10} color="white" />
+                  </View>
+                </View>
+              )}
+            </View>
+          </View>
         </View>
 
         {/* Timestamp / status (only shown on last message of consecutive block or status) */}
@@ -241,7 +275,7 @@ function MessageBubble({
           <Text
             className={`mt-1 text-[11px] ${
               message.status === 'failed' ? 'text-red-500 font-medium' : 'text-gray-400'
-            } ${isMe ? 'text-right' : 'text-left'}`}
+            } ${isMe ? 'text-right' : 'text-left'} ${showAvatar ? 'ml-10' : ''}`}
           >
             {message.status === 'sending' && 'Đang gửi...'}
             {message.status === 'failed' && 'Gửi thất bại'}
@@ -305,9 +339,7 @@ export default function ChatDetailScreen() {
 
   // States
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
-  const [selectedActionMessage, setSelectedActionMessage] = useState<Message | null>(null);
   const [deletedForMeIds, setDeletedForMeIds] = useState<string[]>([]);
-  const menuScaleAnim = useRef(new Animated.Value(0)).current;
 
   const conversation = convData?.data.conversation;
   const members = convData?.data.members ?? [];
@@ -338,30 +370,6 @@ export default function ChatDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setChatInfoVisible(true);
   };
-
-  const handleLongPressMessage = useCallback(
-    (msg: Message) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      menuScaleAnim.setValue(0);
-      setSelectedActionMessage(msg);
-      Animated.spring(menuScaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 300,
-        mass: 0.8,
-      }).start();
-    },
-    [menuScaleAnim],
-  );
-
-  const handleCloseContextMenu = useCallback(() => {
-    Animated.timing(menuScaleAnim, {
-      toValue: 0,
-      duration: 120,
-      useNativeDriver: true,
-    }).start(() => setSelectedActionMessage(null));
-  }, [menuScaleAnim]);
 
   // Input & Typing
   const [draft, setDraft] = useState('');
@@ -472,6 +480,69 @@ export default function ChatDetailScreen() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   }, [draft, id, sendMutation, stopTyping, replyToMessage]);
 
+  const inputRef = useRef<TextInput>(null);
+  const keyboardWasOpenRef = useRef(false);
+  const pendingLongPressRef = useRef<{
+    message: Message;
+    measureBubble: (cb: (layout: MessageBubbleLayout) => void) => void;
+  } | null>(null);
+  const isMountedRef = useRef(true);
+
+  const [selectedActionMessage, setSelectedActionMessage] = useState<Message | null>(null);
+  const [selectedMessageLayout, setSelectedMessageLayout] = useState<MessageBubbleLayout | null>(
+    null,
+  );
+
+  // Listen for keyboardDidHide to perform precise post-keyboard screen measurement
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      if (!isMountedRef.current) return;
+      if (pendingLongPressRef.current) {
+        const { message, measureBubble } = pendingLongPressRef.current;
+        pendingLongPressRef.current = null;
+
+        // Perform measurement AFTER keyboard has completely disappeared
+        requestAnimationFrame(() => {
+          measureBubble((layout) => {
+            if (!isMountedRef.current) return;
+            setSelectedActionMessage(message);
+            setSelectedMessageLayout(layout);
+          });
+        });
+      }
+    });
+
+    return () => {
+      isMountedRef.current = false;
+      hideSub.remove();
+    };
+  }, []);
+
+  const handleLongPressMessage = useCallback(
+    (msg: Message, measureBubble: (cb: (layout: MessageBubbleLayout) => void) => void) => {
+      if (selectedActionMessage) return; // Prevent multiple while open
+
+      // Instant 0ms tactile haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+
+      if (isKeyboardVisible) {
+        keyboardWasOpenRef.current = true;
+        pendingLongPressRef.current = { message: msg, measureBubble };
+        Keyboard.dismiss();
+      } else {
+        keyboardWasOpenRef.current = false;
+        pendingLongPressRef.current = null;
+        measureBubble((layout) => {
+          setSelectedActionMessage(msg);
+          setSelectedMessageLayout(layout);
+        });
+      }
+    },
+    [isKeyboardVisible, selectedActionMessage],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => {
       if (item.kind === 'date') return <DateSeparator label={item.label} />;
@@ -479,20 +550,19 @@ export default function ChatDetailScreen() {
       const { message, isFirstInGroup, isLastInGroup } = item;
       if (message.type === 'system') return <SystemMessage content={message.content} />;
 
-      const isMe = message.senderId._id === currentUserId;
-
       return (
         <MessageBubble
           message={message}
-          isMe={isMe}
+          currentUserId={currentUserId}
           isGroup={isGroup}
           isFirstInGroup={isFirstInGroup}
           isLastInGroup={isLastInGroup}
+          isContextMenuActive={selectedActionMessage?._id === message._id}
           onLongPress={handleLongPressMessage}
         />
       );
     },
-    [currentUserId, isGroup, handleLongPressMessage],
+    [currentUserId, isGroup, selectedActionMessage, handleLongPressMessage],
   );
 
   const handleBackPress = () => {
@@ -628,7 +698,7 @@ export default function ChatDetailScreen() {
               <View className="mr-3 w-[3px] h-9 bg-[#6f6bff] rounded-full" />
               <View className="flex-1">
                 <Text className="text-[12px] font-bold text-[#6f6bff] mb-0.5">
-                  ↩ Trả lời {replyToMessage.senderId.username}
+                  Trả lời {replyToMessage.senderId.username}
                 </Text>
                 <Text className="text-[12px] text-gray-500" numberOfLines={1}>
                   {replyToMessage.content || 'Tệp đính kèm'}
@@ -660,6 +730,7 @@ export default function ChatDetailScreen() {
 
             {/* Input với cỡ chữ to rõ text-lg */}
             <TextInput
+              ref={inputRef}
               className="flex-1 px-2.5 text-[16px] font-normal leading-5 text-gray-900"
               placeholder="Nhập tin nhắn..."
               placeholderTextColor="#9CA3AF"
@@ -692,167 +763,32 @@ export default function ChatDetailScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* ── MESSENGER FLOATING ACTION MENU MODAL ── */}
-      <Modal
-        visible={Boolean(selectedActionMessage)}
-        transparent
-        animationType="none"
-        onRequestClose={handleCloseContextMenu}
-      >
-        <Pressable
-          className="flex-1 justify-center items-center px-5 bg-black/50"
-          onPress={handleCloseContextMenu}
-        >
-          <Animated.View
-            style={{
-              opacity: menuScaleAnim,
-              transform: [
-                {
-                  scale: menuScaleAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.82, 1],
-                  }),
-                },
-              ],
-              width: '100%',
-              maxWidth: 360,
-            }}
-          >
-            <Pressable
-              className="p-4 bg-white rounded-3xl shadow-2xl"
-              onPress={(e) => e.stopPropagation()}
-            >
-              {/* Quick Emoji Reaction Pill */}
-              <View className="flex-row justify-around items-center px-3 py-2 mb-3 bg-gray-100 rounded-full">
-                {['❤️', '😂', '😮', '😢', '😡', '👍'].map((emoji) => (
-                  <Pressable
-                    key={emoji}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                      handleCloseContextMenu();
-                    }}
-                    className="p-1 active:opacity-70"
-                  >
-                    <Text className="text-2xl">{emoji}</Text>
-                  </Pressable>
-                ))}
-              </View>
+      {/* ── MESSENGER-STYLE FLOATING CONTEXT MENU OVERLAY ── */}
+      <FloatingMessageContextMenu
+        visible={Boolean(selectedActionMessage && selectedMessageLayout)}
+        message={selectedActionMessage}
+        layout={selectedMessageLayout}
+        currentUserId={currentUserId}
+        onClose={() => {
+          setSelectedActionMessage(null);
+          setSelectedMessageLayout(null);
+          pendingLongPressRef.current = null;
 
-              {/* Message Preview */}
-              {selectedActionMessage && (
-                <View className="flex-row items-center p-3 mb-3 rounded-2xl border border-blue-100 bg-blue-50/60">
-                  <View className="w-8 h-8 rounded-full bg-[#6f6bff] items-center justify-center mr-2.5">
-                    <Text className="text-xs font-bold text-white">
-                      {selectedActionMessage.senderId?.username?.charAt(0).toUpperCase() || 'U'}
-                    </Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-xs font-bold text-[#6f6bff]">
-                      {selectedActionMessage.senderId?.username || 'Người dùng'}
-                    </Text>
-                    <Text className="text-xs text-gray-800" numberOfLines={2}>
-                      {selectedActionMessage.content || '[Tệp đính kèm]'}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Actions */}
-              <View>
-                {/* Trả lời */}
-                <Pressable
-                  onPress={() => {
-                    if (selectedActionMessage) {
-                      setReplyToMessage(selectedActionMessage);
-                      handleCloseContextMenu();
-                    }
-                  }}
-                  className="flex-row items-center px-3 py-3 rounded-2xl active:bg-gray-100"
-                >
-                  <View className="justify-center items-center mr-3 w-8 h-8 bg-blue-50 rounded-full">
-                    <Ionicons name="arrow-undo-outline" size={18} color="#6f6bff" />
-                  </View>
-                  <Text className="text-[15px] font-semibold text-gray-800">Trả lời</Text>
-                </Pressable>
-
-                {/* Sao chép */}
-                <Pressable
-                  onPress={() => {
-                    if (selectedActionMessage) {
-                      Clipboard.setString(selectedActionMessage.content || '');
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
-                        () => {},
-                      );
-                      handleCloseContextMenu();
-                    }
-                  }}
-                  className="flex-row items-center px-3 py-3 rounded-2xl active:bg-gray-100"
-                >
-                  <View className="justify-center items-center mr-3 w-8 h-8 bg-gray-100 rounded-full">
-                    <Ionicons name="copy-outline" size={18} color="#4B5563" />
-                  </View>
-                  <Text className="text-[15px] font-semibold text-gray-800">Sao chép</Text>
-                </Pressable>
-
-                {/* Ghim / Bỏ ghim */}
-                <Pressable
-                  onPress={() => {
-                    if (selectedActionMessage) {
-                      togglePinMutation.mutate(selectedActionMessage._id);
-                      handleCloseContextMenu();
-                    }
-                  }}
-                  className="flex-row items-center px-3 py-3 rounded-2xl active:bg-gray-100"
-                >
-                  <View className="justify-center items-center mr-3 w-8 h-8 bg-amber-50 rounded-full">
-                    <Ionicons name="pin-outline" size={18} color="#D97706" />
-                  </View>
-                  <Text className="text-[15px] font-semibold text-gray-800">
-                    {selectedActionMessage?.isPinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn'}
-                  </Text>
-                </Pressable>
-
-                {/* Own message only */}
-                {selectedActionMessage?.senderId._id === currentUserId && (
-                  <>
-                    <Pressable
-                      onPress={() => {
-                        if (selectedActionMessage) {
-                          setDeletedForMeIds((prev) => [...prev, selectedActionMessage._id]);
-                          handleCloseContextMenu();
-                        }
-                      }}
-                      className="flex-row items-center px-3 py-3 rounded-2xl active:bg-gray-100"
-                    >
-                      <View className="justify-center items-center mr-3 w-8 h-8 bg-red-50 rounded-full">
-                        <Ionicons name="eye-off-outline" size={18} color="#EF4444" />
-                      </View>
-                      <Text className="text-[15px] font-semibold text-red-500">Xóa ở phía tôi</Text>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={() => {
-                        if (selectedActionMessage) {
-                          deleteMutation.mutate(selectedActionMessage._id);
-                          handleCloseContextMenu();
-                        }
-                      }}
-                      className="flex-row items-center px-3 py-3 rounded-2xl active:bg-gray-100"
-                    >
-                      <View className="justify-center items-center mr-3 w-8 h-8 bg-red-50 rounded-full">
-                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                      </View>
-                      <Text className="text-[15px] font-semibold text-red-500">
-                        Thu hồi với mọi người
-                      </Text>
-                    </Pressable>
-                  </>
-                )}
-              </View>
-            </Pressable>
-          </Animated.View>
-        </Pressable>
-      </Modal>
+          if (keyboardWasOpenRef.current) {
+            keyboardWasOpenRef.current = false;
+            // Restore keyboard focus ONLY after floating context menu reverse animation unmounts completely
+            setTimeout(() => {
+              if (isMountedRef.current) {
+                inputRef.current?.focus();
+              }
+            }, 150);
+          }
+        }}
+        onReply={(msg) => setReplyToMessage(msg)}
+        onTogglePin={(msgId) => togglePinMutation.mutate(msgId)}
+        onDeleteForEveryone={(msgId) => deleteMutation.mutate(msgId)}
+        onDeleteForMe={(msgId) => setDeletedForMeIds((prev) => [...prev, msgId])}
+      />
 
       {/* Full-Screen Chat Info Modal (Slide from right) */}
       <ChatInfoModal

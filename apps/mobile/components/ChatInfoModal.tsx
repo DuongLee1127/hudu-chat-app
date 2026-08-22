@@ -876,7 +876,7 @@ export default function ChatInfoModal({
 
             {pinnedMessages.length === 0 ? (
               <View className="flex-1 justify-center items-center px-8">
-                <View className="w-20 h-20 rounded-full bg-amber-50 items-center justify-center mb-4">
+                <View className="justify-center items-center mb-4 w-20 h-20 bg-amber-50 rounded-full">
                   <Ionicons name="pin-outline" size={40} color="#D97706" />
                 </View>
                 <Text className="text-base font-bold text-center text-gray-700">
@@ -906,7 +906,7 @@ export default function ChatInfoModal({
                   return (
                     <View
                       key={msg._id}
-                      className="mb-3 bg-white rounded-3xl border border-gray-100 overflow-hidden"
+                      className="overflow-hidden mb-3 bg-white rounded-3xl border border-gray-100"
                       style={{
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 1 },
@@ -918,7 +918,7 @@ export default function ChatInfoModal({
                       {/* Pin index banner */}
                       <View className="flex-row justify-between items-center px-4 pt-3 pb-2">
                         <View className="flex-row items-center">
-                          <View className="justify-center items-center w-5 h-5 rounded-full bg-amber-500 mr-2">
+                          <View className="justify-center items-center mr-2 w-5 h-5 bg-amber-500 rounded-full">
                             <Text className="text-[10px] font-bold text-white">{index + 1}</Text>
                           </View>
                           <FontAwesome5 name="thumbtack" size={11} color="#D97706" />
@@ -952,7 +952,7 @@ export default function ChatInfoModal({
                           <Text className="text-sm font-bold text-gray-900 mb-0.5">
                             {senderName}
                           </Text>
-                          <Text className="text-sm text-gray-700 leading-5" numberOfLines={3}>
+                          <Text className="text-sm leading-5 text-gray-700" numberOfLines={3}>
                             {msg.content || (msg.attachmentIds?.length ? '[Tệp đính kèm]' : '')}
                           </Text>
                         </View>
@@ -960,7 +960,7 @@ export default function ChatInfoModal({
                         {/* Unpin button */}
                         <Pressable
                           onPress={() => togglePinMutation.mutate(msg._id)}
-                          className="p-2 rounded-full bg-amber-50 active:bg-amber-100"
+                          className="p-2 bg-amber-50 rounded-full active:bg-amber-100"
                         >
                           <FontAwesome5 name="thumbtack" size={15} color="#D97706" />
                         </Pressable>
@@ -972,7 +972,7 @@ export default function ChatInfoModal({
                 {pinnedMessages.length >= 5 && (
                   <View className="flex-row items-center px-4 py-3 mb-3 bg-amber-50 rounded-2xl border border-amber-100">
                     <Ionicons name="information-circle-outline" size={18} color="#D97706" />
-                    <Text className="ml-2 flex-1 text-xs text-amber-700">
+                    <Text className="flex-1 ml-2 text-xs text-amber-700">
                       Đã đạt giới hạn 5 tin nhắn ghim. Bỏ ghim một tin nhắn trước khi ghim thêm.
                     </Text>
                   </View>
